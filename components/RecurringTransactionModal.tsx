@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -18,12 +19,21 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { 
-  CircleMinus, 
+  CircleMinus,
   CirclePlus, 
   Repeat,
-  Calendar,
+  Calendar as CalendarIcon,
   CreditCard,
+  TrendingUp,
 } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { categories } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { FrequencyType, frequencyLabels, dayOfWeekLabels } from "@/lib/supabase/models";
@@ -38,7 +48,7 @@ interface RecurringTransactionModalProps {
 export interface RecurringTransactionFormData {
   description: string;
   amount: number;
-  type: "income" | "expense";
+  type: "income" | "expense" | "investment";
   category_id: string;
   frequency: FrequencyType;
   day_of_month?: number;
@@ -55,18 +65,39 @@ export function RecurringTransactionModal({
   onSubmit,
   initialData,
 }: RecurringTransactionModalProps) {
-  const [type, setType] = useState<"expense" | "income">(initialData?.type || "expense");
+  const [type, setType] = useState<"expense" | "income" | "investment">(initialData?.type || "expense");
   const [description, setDescription] = useState(initialData?.description || "");
   const [amount, setAmount] = useState(initialData?.amount?.toString() || "");
   const [category, setCategory] = useState(initialData?.category_id || "");
   const [frequency, setFrequency] = useState<FrequencyType>(initialData?.frequency || "monthly");
   const [dayOfMonth, setDayOfMonth] = useState(initialData?.day_of_month?.toString() || "");
   const [dayOfWeek, setDayOfWeek] = useState(initialData?.day_of_week?.toString() || "");
-  const [startDate, setStartDate] = useState(initialData?.start_date || "");
-  const [endDate, setEndDate] = useState(initialData?.end_date || "");
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    initialData?.start_date ? new Date(initialData.start_date) : undefined
+  );
+  const [endDate, setEndDate] = useState<Date | undefined>(
+    initialData?.end_date ? new Date(initialData.end_date) : undefined
+  );
   const [isInstallment, setIsInstallment] = useState(initialData?.is_installment || false);
   const [totalInstallments, setTotalInstallments] = useState(initialData?.total_installments?.toString() || "");
   const [hasEndDate, setHasEndDate] = useState(!!initialData?.end_date);
+
+  // Helper to determine type based on category name
+  const getCategoryType = (name: string): "income" | "expense" | 'investment' => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes("investimento")) return "investment";
+    const incomeKeywords = ["salário", "freelance", "renda", "venda", "depósito", "prêmio", "receita"];
+    return incomeKeywords.some(k => lowerName.includes(k)) ? "income" : "expense";
+  };
+
+  // Handle category selection and auto-set type
+  const handleCategoryChange = (categoryId: string) => {
+    setCategory(categoryId);
+    const selectedCategory = categories.find(c => c.id === categoryId);
+    if (selectedCategory) {
+      setType(getCategoryType(selectedCategory.name));
+    }
+  };
 
   // Reset form when modal closes
   useEffect(() => {
@@ -79,8 +110,10 @@ export function RecurringTransactionModal({
         setFrequency("monthly");
         setDayOfMonth("");
         setDayOfWeek("");
-        setStartDate("");
-        setEndDate("");
+        setDayOfMonth("");
+        setDayOfWeek("");
+        setStartDate(undefined);
+        setEndDate(undefined);
         setIsInstallment(false);
         setTotalInstallments("");
         setHasEndDate(false);
@@ -94,10 +127,10 @@ export function RecurringTransactionModal({
     const data: RecurringTransactionFormData = {
       description,
       amount: parseFloat(amount),
-      type,
+      type: type === "investment" ? "expense" : type,
       category_id: category,
       frequency,
-      start_date: startDate,
+      start_date: startDate ? startDate.toISOString() : new Date().toISOString(),
       is_installment: isInstallment,
     };
 
@@ -110,7 +143,7 @@ export function RecurringTransactionModal({
     }
 
     if (hasEndDate && endDate) {
-      data.end_date = endDate;
+      data.end_date = endDate.toISOString();
     }
 
     if (isInstallment && totalInstallments) {
@@ -118,6 +151,7 @@ export function RecurringTransactionModal({
     }
 
     onSubmit?.(data);
+    toast.success(initialData ? "Recorrência atualizada com sucesso!" : "Recorrência criada com sucesso!");
     onOpenChange(false);
   };
 
@@ -143,15 +177,13 @@ export function RecurringTransactionModal({
 
         <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-5">
           {/* Type Toggle */}
-          <div className="flex border border-border rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setType("expense")}
+          <div className="flex border border-border rounded-lg overflow-hidden opacity-80 cursor-not-allowed">
+            <div
               className={cn(
                 "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all",
                 type === "expense"
                   ? "bg-card text-foreground border-r border-border"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  : "bg-muted text-muted-foreground"
               )}
             >
               <CircleMinus className={cn(
@@ -159,15 +191,13 @@ export function RecurringTransactionModal({
                 type === "expense" ? "text-danger" : "text-muted-foreground"
               )} />
               Despesa
-            </button>
-            <button
-              type="button"
-              onClick={() => setType("income")}
+            </div>
+            <div
               className={cn(
                 "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all",
                 type === "income"
-                  ? "bg-card text-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-card text-foreground border-r border-border"
+                  : "bg-muted text-muted-foreground"
               )}
             >
               <CirclePlus className={cn(
@@ -175,7 +205,21 @@ export function RecurringTransactionModal({
                 type === "income" ? "text-success" : "text-muted-foreground"
               )} />
               Receita
-            </button>
+            </div>
+            <div
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all",
+                type === "investment"
+                  ? "bg-card text-foreground"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              <TrendingUp className={cn(
+                "h-4 w-4",
+                type === "investment" ? "text-amber-500" : "text-muted-foreground"
+              )} />
+              Investimento
+            </div>
           </div>
 
           {/* Recurrence Type Toggle */}
@@ -229,7 +273,7 @@ export function RecurringTransactionModal({
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Categoria</label>
-              <Select value={category} onValueChange={setCategory} required>
+              <Select value={category} onValueChange={handleCategoryChange} required>
                 <SelectTrigger className="h-12 bg-muted border-border rounded-lg text-muted-foreground focus:bg-card focus:border-primary focus:ring-1 focus:ring-primary">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
@@ -287,7 +331,7 @@ export function RecurringTransactionModal({
                   {(Object.keys(frequencyLabels) as FrequencyType[]).map((freq) => (
                     <SelectItem key={freq} value={freq} className="hover:bg-muted">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                         <span className="text-foreground">{frequencyLabels[freq]}</span>
                       </div>
                     </SelectItem>
@@ -340,13 +384,29 @@ export function RecurringTransactionModal({
             <label className="text-sm font-medium text-foreground">
               {isInstallment ? "Data da primeira parcela" : "Data de início"}
             </label>
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-              className="h-12 bg-muted border-border rounded-lg text-muted-foreground focus:bg-card focus:border-primary focus:ring-1 focus:ring-primary [&::-webkit-calendar-picker-indicator]:opacity-50"
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full h-12 justify-start text-left font-normal bg-muted border-border rounded-lg hover:bg-muted/80 shadow-none border",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  initialFocus
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* End Date Toggle (for non-installments) */}
@@ -354,7 +414,7 @@ export function RecurringTransactionModal({
             <>
               <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                 <div className="flex items-center gap-3">
-                  <Calendar className="h-5 w-5 text-orange-base" />
+                  <CalendarIcon className="h-5 w-5 text-orange-base" />
                   <div>
                     <p className="text-sm font-medium text-foreground">Data de término</p>
                     <p className="text-xs text-muted-foreground">Definir quando a recorrência encerra</p>
@@ -369,13 +429,30 @@ export function RecurringTransactionModal({
               {hasEndDate && (
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-foreground">Data de término</label>
-                  <Input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    min={startDate}
-                    className="h-12 bg-muted border-border rounded-lg text-muted-foreground focus:bg-card focus:border-primary focus:ring-1 focus:ring-primary [&::-webkit-calendar-picker-indicator]:opacity-50"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full h-12 justify-start text-left font-normal bg-muted border-border rounded-lg hover:bg-muted/80 shadow-none border",
+                          !endDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                        locale={ptBR}
+                        fromDate={startDate} // Disable dates before start date
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               )}
             </>
@@ -401,7 +478,7 @@ export function RecurringTransactionModal({
                   {" "}{frequencyLabels[frequency].toLowerCase()}
                   {frequency === "monthly" && dayOfMonth && ` no dia ${dayOfMonth}`}
                   {frequency === "weekly" && dayOfWeek && ` às ${dayOfWeekLabels[parseInt(dayOfWeek)]}s`}
-                  {hasEndDate && endDate && ` até ${new Date(endDate).toLocaleDateString("pt-BR")}`}
+                  {hasEndDate && endDate && ` até ${format(endDate, "dd/MM/yyyy", { locale: ptBR })}`}
                   {!hasEndDate && " sem data de término"}
                 </>
               )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Search,
   Plus,
   ArrowDownCircle,
@@ -22,6 +33,7 @@ import {
   Edit2,
   ChevronLeft,
   ChevronRight,
+  TrendingUp,
   Loader2,
 } from "lucide-react";
 import { 
@@ -41,6 +53,7 @@ function formatCurrency(value: number): string {
 
 export default function Transactions() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -51,23 +64,24 @@ export default function Transactions() {
   const itemsPerPage = 10;
 
   // Fetch data from Supabase
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const [transactionsData, categoriesData] = await Promise.all([
-          getTransactions(),
-          getCategories(),
-        ]);
-        setTransactions(transactionsData);
-        setCategories(categoriesData);
-      } catch (error) {
-        console.error("Error fetching transactions:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchData = async () => {
+    try {
+      // Don't necessarily strictly set isLoading to true here to avoid full page flash on small updates
+      // or handle it gracefully. For now, let's keep the initial load logic separate or check if we want spinner.
+      const [transactionsData, categoriesData] = await Promise.all([
+        getTransactions(),
+        getCategories(),
+      ]);
+      setTransactions(transactionsData);
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -75,24 +89,26 @@ export default function Transactions() {
   const handleModalChange = async (open: boolean) => {
     setIsModalOpen(open);
     if (!open) {
-      // Refetch transactions when modal closes
-      try {
-        const transactionsData = await getTransactions();
-        setTransactions(transactionsData);
-      } catch (error) {
-        console.error("Error refetching transactions:", error);
-      }
+      await fetchData();
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta transação?")) return;
-    
+  const handleDeleteClick = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+
     try {
-      await deleteTransactionService(id);
-      setTransactions(prev => prev.filter(t => t.id !== id));
+      await deleteTransactionService(deleteId);
+      await fetchData(); // Reload data from server
+      toast.success("Transação excluída com sucesso!");
     } catch (error) {
       console.error("Error deleting transaction:", error);
+      toast.error("Erro ao excluir transação.");
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -147,8 +163,8 @@ export default function Transactions() {
       <Card className="mb-5 border border-border shadow-sm transition-colors">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">
+            <div className="space-y-4">
+              <label className="text-sm font-medium text-muted-foreground mb-5">
                 Buscar
               </label>
               <Input
@@ -156,30 +172,31 @@ export default function Transactions() {
                 icon={Search}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-12"
+                className="h-12 w-full"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-sm font-medium text-muted-foreground">
                 Tipo
               </label>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-12 bg-card border-border">
+                <SelectTrigger className="h-12 w-full bg-card border-border">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent className="bg-card">
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="income">Receitas</SelectItem>
                   <SelectItem value="expense">Despesas</SelectItem>
+                  <SelectItem value="investment">Investimentos</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-sm font-medium text-muted-foreground">
                 Categoria
               </label>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="h-12 bg-card border-border">
+                <SelectTrigger className="h-12 w-full bg-card border-border">
                   <SelectValue placeholder="Todas" />
                 </SelectTrigger>
                 <SelectContent className="bg-card">
@@ -192,12 +209,12 @@ export default function Transactions() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-sm font-medium text-muted-foreground">
                 Período
               </label>
               <Select defaultValue="all">
-                <SelectTrigger className="h-12 bg-card border-border">
+                <SelectTrigger className="h-12 w-full bg-card border-border">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent className="bg-card">
@@ -296,6 +313,15 @@ export default function Transactions() {
                                   Entrada
                                 </span>
                               </>
+                            ) : transaction.type === "investment" ? (
+                              <>
+                                <div className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center">
+                                  <TrendingUp className="h-3.5 w-3.5 text-amber-500" />
+                                </div>
+                                <span className="text-amber-500 text-sm font-medium">
+                                  Investimento
+                                </span>
+                              </>
                             ) : (
                               <>
                                 <div className="w-5 h-5 rounded-full bg-red-light flex items-center justify-center">
@@ -313,7 +339,9 @@ export default function Transactions() {
                             className={`font-semibold ${
                               transaction.type === "income"
                                 ? "text-success"
-                                : "text-foreground"
+                                : transaction.type === "investment"
+                                  ? "text-amber-500"
+                                  : "text-foreground"
                             }`}
                           >
                             {transaction.type === "income" ? "+ " : "- "}
@@ -326,7 +354,7 @@ export default function Transactions() {
                               variant="ghost"
                               size="icon"
                               className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-red-light"
-                              onClick={() => handleDelete(transaction.id)}
+                              onClick={() => handleDeleteClick(transaction.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -400,6 +428,25 @@ export default function Transactions() {
           </div>
         </CardContent>
       </Card>
+
+      
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza absoluta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. Isso excluirá permanentemente a transação
+              e removerá os dados de nossos servidores.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90 text-white">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <TransactionModal open={isModalOpen} onOpenChange={handleModalChange} />
     </div>
