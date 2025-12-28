@@ -22,6 +22,7 @@ const navItems = [
   { href: "/recurring", label: "Recorrentes" },
   { href: "/categories", label: "Categorias" },
   { href: "/bill-split", label: "Divisão" },
+  { href: "/inventory", label: "Inventário" },
 ];
 
 export function Header() {
