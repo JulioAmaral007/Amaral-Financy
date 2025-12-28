@@ -17,6 +17,7 @@ import {
   Download,
   PiggyBank,
   Loader2,
+  Plus,
 } from "lucide-react";
 import {
   getTransactions,
@@ -187,8 +188,8 @@ export default function Dashboard() {
                   className="bg-success hover:bg-success/90 text-white font-medium"
                   onClick={() => setIsModalOpen(true)}
                 >
-                  Adicionar Transação
-                  <Download className="h-4 w-4 ml-2" />
+                  <span className="hidden md:inline">Adicionar Transação</span>
+                  <Plus className="h-4 w-4 md:ml-2" />
                 </Button>
               </div>
             </CardContent>

@@ -145,8 +145,8 @@ export default function Transactions() {
           onClick={() => setIsModalOpen(true)}
           className="bg-primary hover:bg-brand-dark text-white shadow-sm"
         >
-          <Plus className="h-4 w-4 mr-2" />
-          Nova transação
+          <Plus className="h-4 w-4 md:mr-2" />
+          <span className="hidden md:inline">Nova transação</span>
         </Button>
       </div>
 

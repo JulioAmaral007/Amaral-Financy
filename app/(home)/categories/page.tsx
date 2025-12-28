@@ -114,8 +114,8 @@ export default function Categories() {
           onClick={() => setIsModalOpen(true)}
           className="h-10 px-4 rounded-lg"
         >
-          <Plus className="h-4 w-4 mr-2" />
-          Nova categoria
+          <Plus className="h-4 w-4 md:mr-2" />
+          <span className="hidden md:inline">Nova categoria</span>
         </Button>
       </div>
 

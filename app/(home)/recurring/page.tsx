@@ -209,8 +209,8 @@ export default function RecurringTransactionsPage() {
           onClick={() => setIsModalOpen(true)}
           className="bg-primary hover:bg-brand-dark text-white shadow-sm"
         >
-          <Plus className="h-4 w-4 mr-2" />
-          Nova recorrência
+          <Plus className="h-4 w-4 md:mr-2" />
+          <span className="hidden md:inline">Nova recorrência</span>
         </Button>
       </div>
 
