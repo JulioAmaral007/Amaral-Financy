@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,8 +124,10 @@ export default function RecurringTransactionsPage() {
     try {
       await deleteRecurringTransaction(id);
       setRecurringTransactions(prev => prev.filter(r => r.id !== id));
+      toast.success("Recorrência excluída com sucesso!");
     } catch (error) {
       console.error("Error deleting recurring transaction:", error);
+      toast.error("Erro ao excluir recorrência.");
     }
   };
 
@@ -134,8 +137,10 @@ export default function RecurringTransactionsPage() {
       setRecurringTransactions(prev => 
         prev.map(r => r.id === id ? updated : r)
       );
+      toast.success(updated.is_active ? "Recorrência ativada!" : "Recorrência pausada!");
     } catch (error) {
       console.error("Error toggling recurring transaction:", error);
+      toast.error("Erro ao alterar status da recorrência.");
     }
   };
 
@@ -280,7 +285,7 @@ export default function RecurringTransactionsPage() {
       <Card className="mb-6 border border-border shadow-sm transition-colors">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-sm font-medium text-muted-foreground">
                 Buscar
               </label>
@@ -289,15 +294,15 @@ export default function RecurringTransactionsPage() {
                 icon={Search}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-12"
+                className="h-12 w-full"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-sm font-medium text-muted-foreground">
                 Tipo
               </label>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-12 bg-card border-border">
+                <SelectTrigger className="h-12 w-full bg-card border-border">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent className="bg-card">
@@ -307,12 +312,12 @@ export default function RecurringTransactionsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-sm font-medium text-muted-foreground">
                 Status
               </label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-12 bg-card border-border">
+                <SelectTrigger className="h-12 w-full bg-card border-border">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent className="bg-card">

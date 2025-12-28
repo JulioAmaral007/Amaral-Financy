@@ -39,30 +39,56 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalBalance, setTotalBalance] = useState(0);
+  const [allTimeInvested, setAllTimeInvested] = useState(0);
   const [categoryTotals, setCategoryTotals] = useState<{ category: Category; total: number }[]>([]);
 
   // Fetch data from Supabase
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const [transactionsData, balance, catTotals] = await Promise.all([
-          getTransactions({ limit: 10 }),
-          fetchTotalBalance(),
-          fetchCategoryTotals({ type: "expense" }),
-        ]);
-        setTransactions(transactionsData);
-        setTotalBalance(balance);
-        setCategoryTotals(catTotals.slice(0, 4));
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchData = async () => {
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
 
+      const [monthTransactions, allTransactions, catTotals] = await Promise.all([
+        getTransactions({ startDate: startOfMonth, endDate: endOfMonth }),
+        getTransactions(), // Fetch all for investment total (card)
+        // fetchTotalBalance(), // We will calculate local balance now
+        fetchCategoryTotals({ startDate: startOfMonth, endDate: endOfMonth, type: "expense" }),
+      ]);
+
+      setTransactions(monthTransactions);
+      setCategoryTotals(catTotals.slice(0, 4));
+      
+      // Calculate Month Balance locally: Income - Expense - Investment (for this month)
+      const mIncome = monthTransactions.filter(t => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
+      const mExpense = monthTransactions.filter(t => t.type === "expense").reduce((acc, t) => acc + t.amount, 0);
+      const mInvest = monthTransactions.filter(t => t.type === "investment").reduce((acc, t) => acc + t.amount, 0);
+      setTotalBalance(mIncome - mExpense - mInvest);
+      
+      // Store all transactions for investment calculation
+      // We can just calculate the investment total here and store it in a state
+      const invested = allTransactions
+        .filter(t => t.type === "investment")
+        .reduce((sum, t) => sum + t.amount, 0);
+      setAllTimeInvested(invested);
+
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
+
+  const handleModalChange = (open: boolean) => {
+    setIsModalOpen(open);
+    if (!open) {
+      fetchData();
+    }
+  };
 
   // Calculando totais para o gráfico
   const totalIncome = useMemo(() => 
@@ -75,32 +101,27 @@ export default function Dashboard() {
     [transactions]
   );
   
-  // Calcula total investido a partir da categoria "Investimento"
-  const totalInvested = useMemo(() => {
-    const investmentCategory = categoryTotals.find(
-      c => c.category.name.toLowerCase().includes("investimento")
-    );
-    // Se não encontrar na categoria de despesas, busca nas transações
-    if (investmentCategory) {
-      return investmentCategory.total;
-    }
-    // Fallback: buscar transações com categoria de investimento
-    return transactions
-      .filter(t => t.category?.name.toLowerCase().includes("investimento"))
-      .reduce((sum, t) => sum + t.amount, 0);
-  }, [transactions, categoryTotals]);
+  // Calculate total invested based on type = "investment"
+  // For the specific request: Investment card uses ALL TIME data (allTimeInvested state)
+  // Charts and other metrics use CURRENT MONTH data (transactions state)
+  const totalInvestedMonth = useMemo(() =>
+    transactions.filter(t => t.type === "investment").reduce((sum, t) => sum + t.amount, 0),
+    [transactions]
+  );
 
-  const total = totalIncome + totalExpenses + totalInvested || 1;
-  const incomePercentage = Math.round((totalIncome / total) * 100);
-  const expensePercentage = Math.round((totalExpenses / total) * 100);
-  const investedPercentage = Math.round((totalInvested / total) * 100);
+  // Total for percentage calculation (Monthly view)
+  const totalMonth = totalIncome + totalExpenses + totalInvestedMonth || 1;
+  
+  const incomePercentage = Math.round((totalIncome / totalMonth) * 100);
+  const expensePercentage = Math.round((totalExpenses / totalMonth) * 100);
+  const investedPercentage = Math.round((totalInvestedMonth / totalMonth) * 100);
 
-  // Dados para o gráfico de donut
+  // Dados para o gráfico de donut (Monthly)
   const chartData = useMemo(() => [
     { name: "Ganhos", value: totalIncome || 1, fill: "#22c55e" },
     { name: "Gastos", value: totalExpenses || 1, fill: "#ef4444" },
-    { name: "Investimentos", value: totalInvested || 1, fill: "#f59e0b" },
-  ], [totalIncome, totalExpenses, totalInvested]);
+    { name: "Investimentos", value: totalInvestedMonth || 1, fill: "#f59e0b" },
+  ], [totalIncome, totalExpenses, totalInvestedMonth]);
 
   // Configuração do chart para shadcn/ui
   const chartConfig: ChartConfig = {
@@ -185,7 +206,7 @@ export default function Dashboard() {
                   <span className="text-xs text-muted-foreground">Investido</span>
                 </div>
                 <p className="text-2xl font-bold text-foreground">
-                  {formatCurrency(totalInvested)}
+                  {formatCurrency(allTimeInvested)}
                 </p>
               </CardContent>
             </Card>
@@ -359,7 +380,9 @@ export default function Dashboard() {
                               className={`h-4 w-4 ${
                                 transaction.type === "income"
                                   ? "text-success"
-                                  : "text-muted-foreground"
+                                  : transaction.type === "expense" 
+                                    ? "text-destructive"
+                                    : "text-amber-500" // Investment color
                               }`}
                             />
                           </div>
@@ -377,7 +400,9 @@ export default function Dashboard() {
                           className={`text-sm font-semibold ${
                             transaction.type === "income"
                               ? "text-success"
-                              : "text-destructive"
+                              : transaction.type === "expense"
+                                ? "text-destructive"
+                                : "text-amber-500" // Investment color
                           }`}
                         >
                           {transaction.type === "income" ? "+" : "-"}
@@ -393,7 +418,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <TransactionModal open={isModalOpen} onOpenChange={setIsModalOpen} />
+      <TransactionModal open={isModalOpen} onOpenChange={handleModalChange} />
     </div>
   );
 }
