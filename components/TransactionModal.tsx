@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -14,8 +15,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CircleMinus, CirclePlus } from "lucide-react";
-import { categories } from "@/lib/data";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Calendar as CalendarIcon, CircleMinus, CirclePlus, TrendingUp, Loader2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { createTransaction } from "@/lib/supabase/services";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { getCategories } from "@/lib/supabase/services";
+import type { Category } from "@/lib/supabase/models";
 import { cn } from "@/lib/utils";
 
 interface TransactionModalProps {
@@ -24,16 +35,85 @@ interface TransactionModalProps {
 }
 
 export function TransactionModal({ open, onOpenChange }: TransactionModalProps) {
-  const [type, setType] = useState<"expense" | "income">("expense");
+  const [type, setType] = useState<"expense" | "income" | "investment">("expense");
   const [description, setDescription] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState<Date | undefined>();
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Helper to determine type based on category name
+  const getCategoryType = (name: string): "income" | "expense" | 'investment' => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes("investimento")) return "investment";
+    const incomeKeywords = ["salário", "freelance", "renda", "venda", "depósito", "prêmio", "receita"];
+    return incomeKeywords.some(k => lowerName.includes(k)) ? "income" : "expense";
+  };
+
+  // Handle category selection and auto-set type
+  const handleCategoryChange = (categoryId: string) => {
+    setCategory(categoryId);
+    const selectedCategory = categories.find(c => c.id === categoryId);
+    if (selectedCategory) {
+      setType(getCategoryType(selectedCategory.name));
+    }
+  };
+
+  // Fetch categories when modal opens
+  useEffect(() => {
+    if (open) {
+      const fetchCategories = async () => {
+        try {
+          const data = await getCategories();
+          setCategories(data);
+        } catch (error) {
+          console.error("Error fetching categories:", error);
+          toast.error("Erro ao carregar categorias");
+        }
+      };
+      
+      fetchCategories();
+    }
+  }, [open]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    onOpenChange(false);
+    if (!date) {
+      toast.error("Selecione uma data");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      await createTransaction({
+        description,
+        amount: parseFloat(amount),
+        type: type === "investment" ? "expense" : type,
+        category_id: category,
+        date: date.toISOString(),
+      });
+      
+      let successMessage = "Despesa adicionada com sucesso!";
+      if (type === "income") successMessage = "Receita adicionada com sucesso!";
+      if (type === "investment") successMessage = "Investimento adicionado com sucesso!";
+      
+      toast.success(successMessage);
+      
+      // Reset form
+      setDescription("");
+      setAmount("");
+      setCategory("");
+      setDate(undefined);
+      setType("expense");
+      
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error creating transaction:", error);
+      toast.error("Erro ao criar transação.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -50,15 +130,14 @@ export function TransactionModal({ open, onOpenChange }: TransactionModalProps) 
 
         <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-5">
           {/* Type Toggle */}
-          <div className="flex border border-border rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setType("expense")}
+          {/* Type Display (Read-only) */}
+          <div className="flex border border-border rounded-lg overflow-hidden opacity-80 cursor-not-allowed">
+            <div
               className={cn(
                 "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all",
                 type === "expense"
                   ? "bg-card text-foreground border-r border-border"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  : "bg-muted text-muted-foreground"
               )}
             >
               <CircleMinus className={cn(
@@ -66,15 +145,13 @@ export function TransactionModal({ open, onOpenChange }: TransactionModalProps) 
                 type === "expense" ? "text-danger" : "text-muted-foreground"
               )} />
               Despesa
-            </button>
-            <button
-              type="button"
-              onClick={() => setType("income")}
+            </div>
+            <div
               className={cn(
                 "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all",
                 type === "income"
-                  ? "bg-card text-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-card text-foreground border-r border-border"
+                  : "bg-muted text-muted-foreground"
               )}
             >
               <CirclePlus className={cn(
@@ -82,7 +159,21 @@ export function TransactionModal({ open, onOpenChange }: TransactionModalProps) 
                 type === "income" ? "text-success" : "text-muted-foreground"
               )} />
               Receita
-            </button>
+            </div>
+            <div
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all",
+                type === "investment"
+                  ? "bg-card text-foreground"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              <TrendingUp className={cn(
+                "h-4 w-4",
+                type === "investment" ? "text-amber-500" : "text-muted-foreground"
+              )} />
+              Investimento
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -99,14 +190,29 @@ export function TransactionModal({ open, onOpenChange }: TransactionModalProps) 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Data</label>
-              <Input
-                type="date"
-                placeholder="Selecione"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="h-12 bg-muted border-border rounded-lg text-muted-foreground focus:bg-card focus:border-primary focus:ring-1 focus:ring-primary [&::-webkit-calendar-picker-indicator]:opacity-50"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full h-12 justify-start text-left font-normal bg-muted border-border rounded-lg hover:bg-muted/80 shadow-none border",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Valor</label>
@@ -130,7 +236,7 @@ export function TransactionModal({ open, onOpenChange }: TransactionModalProps) 
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Categoria</label>
-            <Select value={category} onValueChange={setCategory} required>
+            <Select value={category} onValueChange={handleCategoryChange} required>
               <SelectTrigger className="h-12 bg-muted border-border rounded-lg text-muted-foreground focus:bg-card focus:border-primary focus:ring-1 focus:ring-primary">
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
@@ -138,7 +244,7 @@ export function TransactionModal({ open, onOpenChange }: TransactionModalProps) 
                 {categories.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id} className="hover:bg-muted">
                     <div className="flex items-center gap-2">
-                      <cat.icon className="h-4 w-4 text-muted-foreground" />
+                      {/* We could add icon logic here later if needed, but for now just name */}
                       <span className="text-foreground">{cat.name}</span>
                     </div>
                   </SelectItem>
@@ -149,9 +255,17 @@ export function TransactionModal({ open, onOpenChange }: TransactionModalProps) 
 
           <Button 
             type="submit" 
+            disabled={isLoading}
             className="w-full h-12 bg-brand-dark hover:bg-brand-dark/90 text-white font-medium rounded-lg mt-2"
           >
-            Salvar
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              "Salvar"
+            )}
           </Button>
         </form>
       </DialogContent>

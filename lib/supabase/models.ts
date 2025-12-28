@@ -62,7 +62,7 @@ export interface Transaction {
   id: string;
   description: string;
   amount: number;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'investment';
   date: string;
   category_id: string;
   category?: Category;
@@ -77,7 +77,7 @@ export interface RecurringTransaction {
   id: string;
   description: string;
   amount: number;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'investment';
   category_id: string | null;
   category?: Category;
   user_id: string;
@@ -119,11 +119,21 @@ export function transformCategory(row: CategoryRow): Category {
 }
 
 export function transformTransaction(row: TransactionRow, category?: CategoryRow): Transaction {
+  let type = row.type as 'income' | 'expense' | 'investment';
+  
+  // Auto-detect investment based on category if it's an expense
+  // This is a workaround because DB might strict enum 'expense' | 'income'
+  if (type === 'expense' && category) {
+    if (category.name.toLowerCase().includes('investimento')) {
+      type = 'investment';
+    }
+  }
+
   return {
     id: row.id,
     description: row.description,
     amount: row.amount,
-    type: row.type as 'income' | 'expense',
+    type,
     date: row.date,
     category_id: row.category_id,
     category: category ? transformCategory(category) : undefined,
@@ -136,11 +146,20 @@ export function transformTransaction(row: TransactionRow, category?: CategoryRow
 }
 
 export function transformRecurringTransaction(row: RecurringTransactionRow, category?: CategoryRow): RecurringTransaction {
+  let type = row.type as 'income' | 'expense' | 'investment';
+  
+  // Auto-detect investment based on category if it's an expense
+  if (type === 'expense' && category) {
+    if (category.name.toLowerCase().includes('investimento')) {
+      type = 'investment';
+    }
+  }
+
   return {
     id: row.id,
     description: row.description,
     amount: row.amount,
-    type: row.type as 'income' | 'expense',
+    type,
     category_id: row.category_id,
     category: category ? transformCategory(category) : undefined,
     user_id: row.user_id,
