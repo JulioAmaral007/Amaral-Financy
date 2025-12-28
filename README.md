@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💰 Financy - Sistema de Gestão Financeira
 
-## Getting Started
+Sistema de gestão financeira pessoal desenvolvido com Next.js e shadcn/ui.
 
-First, run the development server:
+## 🚀 Tecnologias
+
+- **Framework**: Next.js 16 (App Router)
+- **Linguagem**: TypeScript 5
+- **Estilização**: TailwindCSS 4
+- **Componentes UI**: shadcn/ui (Radix UI + Tailwind)
+- **Ícones**: Lucide React
+- **Fonte**: Inter (Google Fonts)
+
+## 📦 Instalação
 
 ```bash
+# Instalar dependências
+npm install
+
+# Executar em modo de desenvolvimento
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build para produção
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📁 Estrutura do Projeto
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+financy/
+├── app/
+│   ├── (auth)/              # Rotas de autenticação
+│   │   ├── login/           # Página de login
+│   │   ├── register/        # Página de cadastro
+│   │   └── layout.tsx       # Layout de auth
+│   ├── (home)/              # Rotas pós-login
+│   │   ├── dashboard/       # Dashboard principal
+│   │   ├── transactions/    # Lista de transações
+│   │   ├── categories/      # Gerenciamento de categorias
+│   │   ├── profile/         # Perfil do usuário
+│   │   └── layout.tsx       # Layout com header
+│   ├── layout.tsx           # Layout principal
+│   ├── page.tsx             # Redirect para dashboard
+│   └── globals.css          # Estilos globais
+├── components/
+│   ├── ui/                  # Componentes shadcn/ui
+│   ├── Header.tsx           # Header com navegação
+│   ├── Logo.tsx             # Logo do Financy
+│   ├── CategoryBadge.tsx    # Badge de categoria
+│   ├── CategoryModal.tsx    # Modal de nova categoria
+│   ├── TransactionModal.tsx # Modal de nova transação
+│   └── index.ts             # Exports centralizados
+├── lib/
+│   ├── data.ts              # Dados mock e tipos
+│   └── utils.ts             # Utilitários (cn function)
+└── public/
+    └── assets/
+        └── Logo.svg         # Logo oficial
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📄 Páginas
 
-## Learn More
+### Autenticação
+- **Login** (`/login`) - Página de autenticação
+- **Cadastro** (`/register`) - Página de registro
 
-To learn more about Next.js, take a look at the following resources:
+### Principal
+- **Dashboard** (`/dashboard`) - Visão geral financeira
+- **Transações** (`/transactions`) - Lista e filtros de transações
+- **Categorias** (`/categories`) - Gerenciamento de categorias
+- **Perfil** (`/profile`) - Configurações do usuário
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🎨 Style Guide
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Cores da Marca
+- **Brand Base**: `#1F6F43`
+- **Brand Dark**: `#124B2B`
 
-## Deploy on Vercel
+### Cores de Categoria
+- Green, Blue, Purple, Pink, Red, Orange, Yellow
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Feedback
+- **Danger**: `#EF4444`
+- **Success**: `#19AD70`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📋 Scripts
+
+- `npm run dev` - Servidor de desenvolvimento
+- `npm run build` - Build de produção
+- `npm run lint` - Executa ESLint
+
+---
+
+**Desenvolvido com ❤️ usando Next.js + shadcn/ui**
