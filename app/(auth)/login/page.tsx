@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mail, Lock, Eye, EyeOff, UserPlus, Loader2 } from "lucide-react";
-import { useAuth } from "@/lib/supabase/auth-context";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -18,32 +17,14 @@ export default function Login() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { signIn } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
 
-    try {
-      await signIn(email, password);
-      router.push("/dashboard");
-    } catch (err) {
-      if (err instanceof Error) {
-        // Traduz mensagens de erro comuns do Supabase
-        if (err.message.includes("Invalid login credentials")) {
-          setError("E-mail ou senha incorretos");
-        } else if (err.message.includes("Email not confirmed")) {
-          setError("Por favor, confirme seu e-mail antes de fazer login");
-        } else {
-          setError(err.message);
-        }
-      } else {
-        setError("Ocorreu um erro ao fazer login. Tente novamente.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    // Sem autenticação: apenas redireciona para o dashboard
+    router.push("/dashboard");
   };
 
   return (
