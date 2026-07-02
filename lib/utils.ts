@@ -12,10 +12,13 @@ export function formatCurrencyBRL(value: number): string {
   }).format(value)
 }
 
+export function normalizeCurrencyDigits(value: string): string {
+  return value.replace(/\D/g, "").replace(/^0+/, "")
+}
+
 export function parseCurrencyInput(value: string): number {
-  const cleaned = value.replace(/[^\d,.-]/g, "").replace(",", ".")
-  const parsed = parseFloat(cleaned)
-  return Number.isNaN(parsed) ? 0 : parsed
+  const digits = normalizeCurrencyDigits(value)
+  return digits ? Number(digits) / 100 : 0
 }
 
 export function round2(value: number): number {
