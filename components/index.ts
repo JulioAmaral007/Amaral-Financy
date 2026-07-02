@@ -1,22 +1,17 @@
-// Project Specific Components
-export { Logo } from "./Logo";
-export { Header } from "./Header";
-export { ThemeToggle } from "./ThemeToggle";
-export { CategoryBadge } from "./CategoryBadge";
-export { CategoryModal } from "./CategoryModal";
-export { TransactionModal } from "./TransactionModal";
-export { RecurringTransactionModal } from "./RecurringTransactionModal";
+// Layout
+export { Logo } from "./layout/logo";
+export { Header } from "./layout/header";
 
-// Shadcn UI Components (re-export for convenience)
+// Feedback
+export { Toaster } from "./feedback/toaster";
+
+// Forms
+export { FormField } from "./forms/form-field";
+
+// UI Primitives
 export { Button } from "./ui/button";
 export { Input } from "./ui/input";
-export { Label } from "./ui/label";
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from "./ui/card";
-export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+export { Select } from "./ui/select";
+export { Card } from "./ui/card";
 export { Badge } from "./ui/badge";
-export { Checkbox } from "./ui/checkbox";
-export { Switch } from "./ui/switch";
-export { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
-export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-export { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
-
+export { ToggleCheck } from "./ui/toggle-check";
