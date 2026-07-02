@@ -62,7 +62,7 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
       onSubmit={handleSubmit(onSubmit)}
       className="mb-5 flex flex-col gap-3 rounded-xl border border-border/8 bg-input p-5"
     >
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FormField label="Nome da conta" htmlFor="bill-name" error={formState.errors.name?.message}>
           <Input id="bill-name" {...register("name")} />
         </FormField>
@@ -70,7 +70,7 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
           <Input id="bill-amount" inputMode="decimal" {...register("amount")} />
         </FormField>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <FormField label="Dia venc." htmlFor="bill-due-day" error={formState.errors.dueDay?.message}>
           <Input id="bill-due-day" inputMode="numeric" {...register("dueDay")} />
         </FormField>

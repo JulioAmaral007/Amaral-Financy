@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 
 import { Toaster } from "@/components/feedback/toaster";
+import { Header } from "@/components/layout/header";
 import "./globals.css";
 
 const jetbrainsMono = JetBrains_Mono({
@@ -24,7 +25,10 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={jetbrainsMono.variable}>
       <body className="antialiased">
-        {children}
+        <div className="min-h-screen">
+          <Header />
+          <div className="mx-auto max-w-[1180px] px-8 py-11 sm:px-14">{children}</div>
+        </div>
         <Toaster />
       </body>
     </html>
