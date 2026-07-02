@@ -46,3 +46,7 @@ export async function recordCalculation(
     salary3Payment: split.salary3Payment,
   });
 }
+
+export async function deleteHistoryEntry(id: string): Promise<void> {
+  return historyRepository.deleteHistoryEntry(id);
+}
