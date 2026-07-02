@@ -2,22 +2,21 @@
 
 import { useState, useTransition } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 
 import { createFixedBillAction } from "@/actions/fixed-bill.actions";
 import { FormField } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { parseCurrencyInput } from "@/lib/utils";
 import {
   createFixedBillFormSchema,
   fixedBillCategories,
-  fixedBillPayers,
   type CreateFixedBillFormValues,
 } from "@/schemas/fixed-bill.schema";
-import { PAYER_LABELS } from "@/services/fixed-bill.service";
 
 interface AddFixedBillFormProps {
   onDone: () => void;
@@ -28,13 +27,13 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
 
-  const { register, handleSubmit, formState } = useForm<CreateFixedBillFormValues>({
+  const { register, control, handleSubmit, formState } = useForm<CreateFixedBillFormValues>({
     resolver: zodResolver(createFixedBillFormSchema),
     defaultValues: {
       name: "",
       amount: "",
       category: fixedBillCategories[0],
-      payer: fixedBillPayers[0],
+      payer: "split",
       dueDay: "",
     },
   });
@@ -67,10 +66,16 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
           <Input id="bill-name" {...register("name")} />
         </FormField>
         <FormField label="Valor (R$)" htmlFor="bill-amount" error={formState.errors.amount?.message}>
-          <Input id="bill-amount" inputMode="decimal" {...register("amount")} />
+          <Controller
+            control={control}
+            name="amount"
+            render={({ field }) => (
+              <CurrencyInput id="bill-amount" value={field.value} onValueChange={field.onChange} />
+            )}
+          />
         </FormField>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FormField label="Dia venc." htmlFor="bill-due-day" error={formState.errors.dueDay?.message}>
           <Input id="bill-due-day" inputMode="numeric" {...register("dueDay")} />
         </FormField>
@@ -79,15 +84,6 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
             {fixedBillCategories.map((category) => (
               <option key={category} value={category}>
                 {category}
-              </option>
-            ))}
-          </Select>
-        </FormField>
-        <FormField label="Pago por" htmlFor="bill-payer">
-          <Select id="bill-payer" {...register("payer")}>
-            {fixedBillPayers.map((payer) => (
-              <option key={payer} value={payer}>
-                {PAYER_LABELS[payer]}
               </option>
             ))}
           </Select>
