@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import { Providers } from "./providers";
-import { Toaster } from "@/components/ui/sonner";
+import { JetBrains_Mono } from "next/font/google";
+
+import { Toaster } from "@/components/feedback/toaster";
 import "./globals.css";
 
-const inter = Inter({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  variable: "--font-jetbrains-mono",
 });
 
 export const metadata: Metadata = {
-  title: "Financy - Gestão Financeira",
-  description: "Sistema de gestão financeira pessoal e empresarial",
+  title: "Divisão de Contas",
+  description: "Divida suas contas usando o salário 1 como prioritário",
 };
 
 export default function RootLayout({
@@ -21,14 +22,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className={`${inter.variable} antialiased`}>
-        <Providers>
-          {children}
-          <Toaster />
-        </Providers>
+    <html lang="pt-BR" className={jetbrainsMono.variable}>
+      <body className="antialiased">
+        {children}
+        <Toaster />
       </body>
     </html>
   );
 }
-
