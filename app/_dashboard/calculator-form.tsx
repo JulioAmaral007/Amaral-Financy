@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 
 import { calculateAction } from "@/actions/calculate.actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { emitHistoryUpdated } from "@/lib/history-events";
 import { formatCurrencyBRL, parseCurrencyInput } from "@/lib/utils";
 import { calculateFormSchema, type CalculateFormValues } from "@/schemas/calculate.schema";
@@ -23,7 +23,7 @@ export function CalculatorForm() {
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
 
-  const { register, handleSubmit, control, reset } = useForm<CalculateFormValues>({
+  const { handleSubmit, control, reset } = useForm<CalculateFormValues>({
     resolver: zodResolver(calculateFormSchema),
     defaultValues: { salary1: "", salary2: "", salary3: "", billAmount: "" },
   });
@@ -31,9 +31,9 @@ export function CalculatorForm() {
   useEffect(() => {
     profileService.getProfile().then((profile) => {
       reset({
-        salary1: profile.salary1 ? String(profile.salary1) : "",
-        salary2: profile.salary2 ? String(profile.salary2) : "",
-        salary3: profile.salary3 ? String(profile.salary3) : "",
+        salary1: profile.salary1 ? String(Math.round(profile.salary1 * 100)) : "",
+        salary2: profile.salary2 ? String(Math.round(profile.salary2 * 100)) : "",
+        salary3: profile.salary3 ? String(Math.round(profile.salary3 * 100)) : "",
         billAmount: "",
       });
     });
@@ -85,7 +85,13 @@ export function CalculatorForm() {
                 Prioritário
               </span>
             </label>
-            <Input id="salary1" prefix="R$" inputMode="decimal" placeholder="0,00" {...register("salary1")} />
+            <Controller
+              control={control}
+              name="salary1"
+              render={({ field }) => (
+                <CurrencyInput id="salary1" value={field.value} onValueChange={field.onChange} />
+              )}
+            />
           </div>
 
           <div>
@@ -96,7 +102,13 @@ export function CalculatorForm() {
               <span className="text-sm font-semibold text-foreground">Salário 2</span>
               <span className="text-xs text-foreground/45">(Proporcional do excedente)</span>
             </label>
-            <Input id="salary2" prefix="R$" inputMode="decimal" placeholder="0,00" {...register("salary2")} />
+            <Controller
+              control={control}
+              name="salary2"
+              render={({ field }) => (
+                <CurrencyInput id="salary2" value={field.value} onValueChange={field.onChange} />
+              )}
+            />
           </div>
 
           <div>
@@ -107,7 +119,13 @@ export function CalculatorForm() {
               <span className="text-sm font-semibold text-foreground">Salário 3</span>
               <span className="text-xs text-foreground/45">(Proporcional do excedente)</span>
             </label>
-            <Input id="salary3" prefix="R$" inputMode="decimal" placeholder="0,00" {...register("salary3")} />
+            <Controller
+              control={control}
+              name="salary3"
+              render={({ field }) => (
+                <CurrencyInput id="salary3" value={field.value} onValueChange={field.onChange} />
+              )}
+            />
           </div>
 
           <div className="h-px bg-border/6" />
@@ -119,12 +137,12 @@ export function CalculatorForm() {
               </span>
               <span className="text-sm font-semibold text-foreground">Valor da Conta</span>
             </label>
-            <Input
-              id="billAmount"
-              prefix="R$"
-              inputMode="decimal"
-              placeholder="0,00"
-              {...register("billAmount")}
+            <Controller
+              control={control}
+              name="billAmount"
+              render={({ field }) => (
+                <CurrencyInput id="billAmount" value={field.value} onValueChange={field.onChange} />
+              )}
             />
           </div>
 
