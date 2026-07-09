@@ -123,7 +123,7 @@ export function PjCycleConfigForm({ cycle, canCancel, onDone, onCancel }: PjCycl
           <StarDivider className="mt-2 text-center" />
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <FormField label="Data inicial" htmlFor="pj-start-date" error={errors.startDate?.message}>
               <Input id="pj-start-date" type="date" {...register("startDate")} />
             </FormField>

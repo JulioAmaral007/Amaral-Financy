@@ -32,7 +32,6 @@ export interface PjCycleDay {
   date: string;
   done: boolean;
   hoursWorked: number | null;
-  note: string;
   morningStart: string | null;
   morningEnd: string | null;
   afternoonStart: string | null;

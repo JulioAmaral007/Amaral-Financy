@@ -12,7 +12,7 @@ import {
   pjSummary,
   type PjSummary,
 } from "@/services/pj-math.service";
-import { parseISODateLocal } from "@/services/goal-math.service";
+import { parseISODateLocal } from "@/lib/date";
 import type { PjCycle, PjCycleConfig, PjCycleDay } from "@/types/pj";
 
 const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -127,7 +127,6 @@ export async function updateDay(input: UpdatePjDayInput): Promise<void> {
   await pjCycleDayRepository.updateDay(userId, input.dayId, {
     done: input.done,
     hoursWorked,
-    note: input.note,
     morningStart: input.morningStart,
     morningEnd: input.morningEnd,
     afternoonStart: input.afternoonStart,

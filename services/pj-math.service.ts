@@ -1,5 +1,5 @@
 import { round2 } from "@/lib/utils";
-import { parseISODateLocal } from "@/services/goal-math.service";
+import { parseISODateLocal } from "@/lib/date";
 import type { PjCycle, PjCycleConfig, PjCycleDay, PjJourneyMode } from "@/types/pj";
 
 const DEFAULT_WEEKDAYS = [1, 2, 3, 4, 5];

@@ -49,7 +49,6 @@ export function PjDayRow({ day, journeyMode, onChanged }: PjDayRowProps) {
   const [morningEnd, setMorningEnd] = useState(toDigits(day.morningEnd));
   const [afternoonStart, setAfternoonStart] = useState(toDigits(day.afternoonStart));
   const [afternoonEnd, setAfternoonEnd] = useState(toDigits(day.afternoonEnd));
-  const [note, setNote] = useState(day.note);
   const [, startTransition] = useTransition();
 
   const morningStartValue = timeDigitsToValue(morningStart);
@@ -85,13 +84,6 @@ export function PjDayRow({ day, journeyMode, onChanged }: PjDayRowProps) {
     });
   }
 
-  function handleNoteBlur() {
-    startTransition(async () => {
-      await updatePjDayAction({ dayId: day.id, note });
-      onChanged();
-    });
-  }
-
   return (
     <div className={cn("border-b border-dashed border-rule-faint py-2", day.done && "bg-paper-dim")}>
       <div className="flex items-center">
@@ -100,21 +92,15 @@ export function PjDayRow({ day, journeyMode, onChanged }: PjDayRowProps) {
           onClick={handleToggleDone}
           aria-label={`Marcar ${day.dateLabel} como concluído`}
         />
-        <div className="ml-1 w-[84px] flex-none">
+        <div className="ml-1 w-[72px] flex-none sm:w-[84px]">
           <span className="text-[13.5px] font-bold text-ink">{day.dateLabel}</span>
           <span className="text-[11px] uppercase tracking-[0.06em] text-ink-faint"> {day.weekdayLabel}</span>
         </div>
-        <div className="w-[72px] flex-none text-center text-[13.5px] font-bold text-ink">
+        <div className="w-[52px] flex-none text-center text-[13.5px] font-bold text-ink sm:w-[72px]">
           {computedHours !== null ? formatHoursClock(computedHours) : "—"}
         </div>
-        <input
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          onBlur={handleNoteBlur}
-          placeholder="............................."
-          className="min-w-0 flex-1 bg-transparent px-1 py-0.5 text-[12.5px] italic text-ink-soft outline-none"
-        />
-        <div className="flex w-[90px] flex-none justify-end">
+        <div className="flex-1" />
+        <div className="flex w-[64px] flex-none justify-end sm:w-[90px]">
           {day.statusLabel && day.statusTone && <Badge tone={day.statusTone}>{day.statusLabel}</Badge>}
         </div>
       </div>

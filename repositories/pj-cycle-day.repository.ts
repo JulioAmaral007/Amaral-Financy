@@ -8,7 +8,6 @@ interface PjCycleDayRow {
   date: string;
   done: boolean;
   hours_worked: number | null;
-  note: string;
   morning_start: string | null;
   morning_end: string | null;
   afternoon_start: string | null;
@@ -16,7 +15,7 @@ interface PjCycleDayRow {
 }
 
 const SELECT_COLUMNS =
-  "id, cycle_id, date, done, hours_worked, note, morning_start, morning_end, afternoon_start, afternoon_end";
+  "id, cycle_id, date, done, hours_worked, morning_start, morning_end, afternoon_start, afternoon_end";
 
 function mapRow(row: PjCycleDayRow): PjCycleDay {
   return {
@@ -25,7 +24,6 @@ function mapRow(row: PjCycleDayRow): PjCycleDay {
     date: row.date,
     done: row.done,
     hoursWorked: row.hours_worked,
-    note: row.note,
     morningStart: row.morning_start,
     morningEnd: row.morning_end,
     afternoonStart: row.afternoon_start,
@@ -67,7 +65,6 @@ export async function updateDay(
   patch: {
     done?: boolean;
     hoursWorked?: number | null;
-    note?: string;
     morningStart?: string | null;
     morningEnd?: string | null;
     afternoonStart?: string | null;
@@ -78,7 +75,6 @@ export async function updateDay(
   const rowPatch: Record<string, unknown> = {};
   if (patch.done !== undefined) rowPatch.done = patch.done;
   if (patch.hoursWorked !== undefined) rowPatch.hours_worked = patch.hoursWorked;
-  if (patch.note !== undefined) rowPatch.note = patch.note;
   if (patch.morningStart !== undefined) rowPatch.morning_start = patch.morningStart;
   if (patch.morningEnd !== undefined) rowPatch.morning_end = patch.morningEnd;
   if (patch.afternoonStart !== undefined) rowPatch.afternoon_start = patch.afternoonStart;

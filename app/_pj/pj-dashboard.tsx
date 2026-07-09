@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HatchBar, ReceiptTitle, StarDivider } from "@/components/ui/receipt";
 import { cn, formatCurrencyBRL, formatPercent } from "@/lib/utils";
-import { parseISODateLocal } from "@/services/goal-math.service";
+import { parseISODateLocal } from "@/lib/date";
 import { journeyHoursOf } from "@/services/pj-math.service";
 import type { ActiveCycleView } from "@/services/pj.service";
 
@@ -48,7 +48,7 @@ export function PjDashboard({ activeCycle, onOpenConfig, onOpenHistory, onChange
     <Card className="-rotate-[0.25deg]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <ReceiptTitle className="text-[27px] tracking-[0.09em]">FOLHA DE PONTO — PJ</ReceiptTitle>
+          <ReceiptTitle className="text-[21px] tracking-[0.09em] sm:text-[27px]">FOLHA DE PONTO — PJ</ReceiptTitle>
           <p className="mt-0.5 text-[12px] uppercase tracking-[0.08em] text-ink-faint">
             {periodLabel} · {journeyLabel} · {formatCurrencyBRL(cycle.hourlyRate)}/h
           </p>
@@ -97,7 +97,7 @@ export function PjDashboard({ activeCycle, onOpenConfig, onOpenHistory, onChange
         {round1(remainingHours)}h restantes · média {round1(summary.avgDaily)}h/dia
       </div>
 
-      <div className="mb-[18px] grid gap-7 sm:grid-cols-2">
+      <div className="mb-[18px] grid grid-cols-1 gap-7 sm:grid-cols-2">
         <div>
           <div className="mb-1.5 flex items-baseline justify-between">
             <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink-soft">Progresso do ciclo</span>
@@ -114,7 +114,7 @@ export function PjDashboard({ activeCycle, onOpenConfig, onOpenHistory, onChange
         </div>
       </div>
 
-      <div className="mb-[22px] grid gap-7 sm:grid-cols-2">
+      <div className="mb-[22px] grid grid-cols-1 gap-7 sm:grid-cols-2">
         <div className="flex items-baseline justify-between gap-2.5 border-[3px] border-double border-ink px-4 py-3">
           <span className="text-[12px] uppercase tracking-[0.08em] text-ink-soft">Garantido (dias feitos)</span>
           <span className="text-[17px] font-bold text-ink">{formatCurrencyBRL(summary.guaranteedValue)}</span>
@@ -127,10 +127,10 @@ export function PjDashboard({ activeCycle, onOpenConfig, onOpenHistory, onChange
 
       <div className="mb-0.5 flex items-baseline border-b-[2.5px] border-ink pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink-soft">
         <span className="w-9 flex-none">OK</span>
-        <span className="w-[88px] flex-none">Data</span>
-        <span className="w-[72px] flex-none">Horas</span>
-        <span className="flex-1">Observação</span>
-        <span className="w-[90px] flex-none text-right">Registro</span>
+        <span className="w-[72px] flex-none sm:w-[88px]">Data</span>
+        <span className="w-[52px] flex-none sm:w-[72px]">Horas</span>
+        <span className="flex-1" />
+        <span className="w-[64px] flex-none text-right sm:w-[90px]">Registro</span>
       </div>
       <div className="flex flex-col">
         {days.map((day) => (

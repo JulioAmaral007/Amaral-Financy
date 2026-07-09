@@ -46,7 +46,6 @@ export const updatePjDaySchema = z.object({
   dayId: z.string().min(1),
   done: z.boolean().optional(),
   hoursWorked: z.number().min(0).nullable().optional(),
-  note: z.string().optional(),
   morningStart: timeStringSchema.optional(),
   morningEnd: timeStringSchema.optional(),
   afternoonStart: timeStringSchema.optional(),
