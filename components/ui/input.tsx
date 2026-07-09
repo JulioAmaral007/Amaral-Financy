@@ -11,23 +11,17 @@ interface InputProps extends React.ComponentProps<"input"> {
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, icon: Icon, prefix, ...props }, ref) => {
     return (
-      <div className="relative">
-        {Icon && (
-          <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-foreground/40 pointer-events-none" />
-        )}
+      <div className="flex items-baseline gap-2 border-b-2 border-dotted border-rule px-0.5 py-1 focus-within:border-ink">
+        {Icon && <Icon className="h-4 w-4 shrink-0 text-ink-faint" />}
         {prefix && (
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/40 text-sm font-mono pointer-events-none">
-            {prefix}
-          </span>
+          <span className="shrink-0 text-sm text-ink-faint">{prefix}</span>
         )}
         <input
           ref={ref}
           type={type}
           data-slot="input"
           className={cn(
-            "w-full min-w-0 rounded-lg border border-border/8 bg-input px-3.5 py-3 text-[15px] text-foreground placeholder:text-foreground/40 outline-none transition-colors focus:border-primary/40 disabled:pointer-events-none disabled:opacity-50",
-            Icon && "pl-11",
-            prefix && "pl-10",
+            "w-full min-w-0 bg-transparent py-1 text-[15px] text-ink placeholder:text-ink-faint/70 outline-none disabled:pointer-events-none disabled:opacity-50",
             className
           )}
           {...props}

@@ -19,6 +19,11 @@ export interface ChartPoint extends MonthlyTotal {
   isCurrent: boolean;
 }
 
+export interface ChartYAxisTick {
+  value: number;
+  y: number;
+}
+
 export interface PersonTotals {
   person1: number;
   person2: number;

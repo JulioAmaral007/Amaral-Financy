@@ -2,14 +2,21 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-type BadgeTone = "primary" | "blue" | "purple" | "amber" | "danger";
+export type BadgeTone = "primary" | "blue" | "purple" | "amber" | "danger" | "neutral";
 
+/**
+ * Badge renders as a rotated rubber-stamp tag (Rumo Recibo). The "neutral"
+ * tone is the flat, faint ledger label with no border or rotation.
+ */
 const toneClasses: Record<BadgeTone, string> = {
-  primary: "bg-primary/14 text-primary-soft",
-  blue: "bg-blue/14 text-blue-soft",
-  purple: "bg-purple/14 text-purple-soft",
-  amber: "bg-amber/14 text-amber-soft",
-  danger: "bg-danger/14 text-danger-soft",
+  primary:
+    "rounded-[4px] border-2 border-red text-red opacity-85 -rotate-3 px-2 py-0.5",
+  blue: "rounded-[4px] border-2 border-blue text-blue opacity-85 -rotate-3 px-2 py-0.5",
+  purple: "rounded-[4px] border-2 border-red text-red opacity-85 -rotate-3 px-2 py-0.5",
+  amber:
+    "rounded-[4px] border-2 border-ink-soft text-ink-soft opacity-85 -rotate-3 px-2 py-0.5",
+  danger: "rounded-[4px] border-2 border-red text-red opacity-85 -rotate-3 px-2 py-0.5",
+  neutral: "text-ink-faint",
 };
 
 interface BadgeProps extends React.ComponentProps<"span"> {
@@ -21,7 +28,7 @@ function Badge({ className, tone = "primary", ...props }: BadgeProps) {
     <span
       data-slot="badge"
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
+        "inline-flex items-center whitespace-nowrap text-[10.5px] font-bold uppercase tracking-[0.12em]",
         toneClasses[tone],
         className
       )}

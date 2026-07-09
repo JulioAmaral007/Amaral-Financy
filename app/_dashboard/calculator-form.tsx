@@ -4,22 +4,31 @@ import { useEffect, useState, useTransition } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { calculateAction } from "@/actions/calculate.actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { ReceiptTitle, StarDivider } from "@/components/ui/receipt";
 import { emitHistoryUpdated } from "@/lib/history-events";
 import { formatCurrencyBRL, parseCurrencyInput } from "@/lib/utils";
 import { calculateFormSchema, type CalculateFormValues } from "@/schemas/calculate.schema";
 import * as profileService from "@/services/profile.service";
 import type { SalarySplitResult } from "@/types/bill-split";
 
-import { CalculatorEmptyState } from "./calculator-empty-state";
-import { CalculatorResultPanel } from "./calculator-result-panel";
+export interface CalculatorResultPayload {
+  result: SalarySplitResult;
+  bill: number;
+}
 
-export function CalculatorForm() {
-  const [result, setResult] = useState<SalarySplitResult | undefined>();
+interface CalculatorFormProps {
+  onResult: (payload: CalculatorResultPayload | null) => void;
+}
+
+const amountClass = "text-[18px] font-bold";
+
+export function CalculatorForm({ onResult }: CalculatorFormProps) {
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
 
@@ -48,133 +57,123 @@ export function CalculatorForm() {
 
   function handleClear() {
     reset({ salary1: "", salary2: "", salary3: "", billAmount: "" });
-    setResult(undefined);
     setError(undefined);
+    onResult(null);
   }
 
   function onSubmit(data: CalculateFormValues) {
     setError(undefined);
     startTransition(async () => {
+      const billAmount = parseCurrencyInput(data.billAmount);
       const response = await calculateAction({
         salary1: parseCurrencyInput(data.salary1),
         salary2: parseCurrencyInput(data.salary2),
         salary3: parseCurrencyInput(data.salary3),
-        billAmount: parseCurrencyInput(data.billAmount),
+        billAmount,
       });
       if (response.error) setError(response.error);
-      if (response.result) setResult(response.result);
-      if (response.result && !response.error) emitHistoryUpdated();
+      if (response.result) {
+        onResult({ result: response.result, bill: billAmount });
+        if (!response.error) {
+          toast.success("Cálculo salvo no histórico.");
+          emitHistoryUpdated();
+        }
+      }
     });
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-      <Card>
-        <p className="mb-5 text-[12px] font-semibold uppercase tracking-wider text-foreground/55">
-          Dados para Cálculo
+    <Card className="rotate-[0.3deg]">
+      <div className="mb-1.5 text-center">
+        <ReceiptTitle className="tracking-[0.1em]">CALCULADORA</ReceiptTitle>
+        <p className="mt-0.5 text-[11.5px] uppercase tracking-[0.12em] text-ink-faint">
+          salário 1 como prioritário
         </p>
+        <StarDivider className="mt-2 text-center" />
+      </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label htmlFor="salary1" className="mb-2 flex items-center gap-2">
-              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-primary/18 text-[11px] font-bold text-primary-soft">
-                1
-              </span>
-              <span className="text-sm font-semibold text-foreground">Salário 1</span>
-              <span className="rounded-full bg-primary/14 px-2 py-0.5 text-[11px] font-semibold text-primary-soft">
-                Prioritário
-              </span>
-            </label>
-            <Controller
-              control={control}
-              name="salary1"
-              render={({ field }) => (
-                <CurrencyInput id="salary1" value={field.value} onValueChange={field.onChange} />
-              )}
-            />
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div className="mb-[18px]">
+          <div className="mb-1 flex items-baseline gap-2">
+            <span className="text-[13px] font-bold tracking-[0.1em] text-ink">1. SALÁRIO 1</span>
+            <span className="inline-block -rotate-3 rounded-[4px] border-2 border-red px-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-red opacity-85">
+              prioritário
+            </span>
           </div>
+          <Controller
+            control={control}
+            name="salary1"
+            render={({ field }) => (
+              <CurrencyInput id="salary1" className={amountClass} value={field.value} onValueChange={field.onChange} />
+            )}
+          />
+        </div>
 
-          <div>
-            <label htmlFor="salary2" className="mb-2 flex items-center gap-2">
-              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-blue/18 text-[11px] font-bold text-blue-soft">
-                2
-              </span>
-              <span className="text-sm font-semibold text-foreground">Salário 2</span>
-              <span className="text-xs text-foreground/45">(Proporcional do excedente)</span>
-            </label>
-            <Controller
-              control={control}
-              name="salary2"
-              render={({ field }) => (
-                <CurrencyInput id="salary2" value={field.value} onValueChange={field.onChange} />
-              )}
-            />
+        <div className="mb-[18px]">
+          <div className="mb-1 flex items-baseline gap-2">
+            <span className="text-[13px] font-bold tracking-[0.1em] text-blue">2. SALÁRIO 2</span>
+            <span className="text-[11.5px] text-ink-faint">(proporcional do excedente)</span>
           </div>
+          <Controller
+            control={control}
+            name="salary2"
+            render={({ field }) => (
+              <CurrencyInput id="salary2" className={amountClass} value={field.value} onValueChange={field.onChange} />
+            )}
+          />
+        </div>
 
-          <div>
-            <label htmlFor="salary3" className="mb-2 flex items-center gap-2">
-              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-purple/18 text-[11px] font-bold text-purple-soft">
-                3
-              </span>
-              <span className="text-sm font-semibold text-foreground">Salário 3</span>
-              <span className="text-xs text-foreground/45">(Proporcional do excedente)</span>
-            </label>
-            <Controller
-              control={control}
-              name="salary3"
-              render={({ field }) => (
-                <CurrencyInput id="salary3" value={field.value} onValueChange={field.onChange} />
-              )}
-            />
+        <div className="mb-[22px]">
+          <div className="mb-1 flex items-baseline gap-2">
+            <span className="text-[13px] font-bold tracking-[0.1em] text-red">3. SALÁRIO 3</span>
+            <span className="text-[11.5px] text-ink-faint">(proporcional do excedente)</span>
           </div>
+          <Controller
+            control={control}
+            name="salary3"
+            render={({ field }) => (
+              <CurrencyInput id="salary3" className={amountClass} value={field.value} onValueChange={field.onChange} />
+            )}
+          />
+        </div>
 
-          <div className="h-px bg-border/6" />
+        <div className="mb-5 border-t-2 border-dashed border-rule-faint pt-[18px]">
+          <div className="mb-1 text-[13px] font-bold tracking-[0.1em] text-ink">$ VALOR DA CONTA</div>
+          <Controller
+            control={control}
+            name="billAmount"
+            render={({ field }) => (
+              <CurrencyInput id="billAmount" className={amountClass} value={field.value} onValueChange={field.onChange} />
+            )}
+          />
+        </div>
 
-          <div>
-            <label htmlFor="billAmount" className="mb-2 flex items-center gap-2">
-              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-[6px] bg-amber/18 text-[12px] font-bold text-amber-soft">
-                $
-              </span>
-              <span className="text-sm font-semibold text-foreground">Valor da Conta</span>
-            </label>
-            <Controller
-              control={control}
-              name="billAmount"
-              render={({ field }) => (
-                <CurrencyInput id="billAmount" value={field.value} onValueChange={field.onChange} />
-              )}
-            />
+        <div className="mb-[22px] border-[3px] border-double border-ink px-4 py-3">
+          <div className="flex items-baseline py-0.5 text-[13.5px]">
+            <span className="text-ink-soft">Soma dos salários</span>
+            <span className="leader" />
+            <span className="font-bold text-ink">{formatCurrencyBRL(sumSalaries)}</span>
           </div>
-
-          <div className="space-y-2 rounded-[10px] bg-input p-4">
-            <div className="flex justify-between text-[13.5px]">
-              <span className="text-foreground/55">Soma dos Salários:</span>
-              <span className="font-mono font-semibold text-foreground">
-                {formatCurrencyBRL(sumSalaries)}
-              </span>
-            </div>
-            <div className="flex justify-between text-[13.5px]">
-              <span className="text-foreground/55">Valor da Conta:</span>
-              <span className="font-mono font-semibold text-foreground">{formatCurrencyBRL(bill)}</span>
-            </div>
+          <div className="flex items-baseline py-0.5 text-[13.5px]">
+            <span className="text-ink-soft">Valor da conta</span>
+            <span className="leader" />
+            <span className="font-bold text-ink">{formatCurrencyBRL(bill)}</span>
           </div>
+        </div>
 
-          {error && <p className="text-[13px] text-danger-soft">{error}</p>}
+        {error && (
+          <p className="mb-4 border-2 border-dashed border-red px-3 py-2.5 text-[12.5px] text-red">!! {error}</p>
+        )}
 
-          <div className="grid grid-cols-[1fr_1.4fr] gap-3">
-            <Button type="button" variant="outline" onClick={handleClear}>
-              Limpar
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Calcular"}
-            </Button>
-          </div>
-        </form>
-      </Card>
-
-      <Card className="flex flex-col">
-        {result ? <CalculatorResultPanel result={result} /> : <CalculatorEmptyState />}
-      </Card>
-    </div>
+        <div className="grid grid-cols-[1fr_1.4fr] gap-3">
+          <Button type="button" variant="outline" onClick={handleClear}>
+            Limpar
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Calcular"}
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 }

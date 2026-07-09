@@ -1,11 +1,11 @@
 import { round2 } from "@/lib/utils";
 import type { HistoryEntry } from "@/types/history";
-import type { ChartPoint, MonthlyTotal } from "@/types/bill-split";
+import type { ChartPoint, ChartYAxisTick, MonthlyTotal } from "@/types/bill-split";
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 const CHART_WIDTH = 640;
-const CHART_LEFT_MARGIN = 30;
+const CHART_LEFT_MARGIN = 54;
 const CHART_RIGHT_MARGIN = 30;
 const CHART_TOP_Y = 30;
 const CHART_BASELINE_Y = 170;
@@ -55,8 +55,12 @@ export function getMonthDelta(months: MonthlyTotal[]): { label: string; positive
   return { label: `${sign}${delta.toFixed(1)}% vs mês anterior`, positive };
 }
 
+function getChartMaxValue(months: MonthlyTotal[]): number {
+  return Math.max(1, ...months.map((m) => m.total)) * 1.25;
+}
+
 export function getChartPoints(months: MonthlyTotal[]): ChartPoint[] {
-  const maxValue = Math.max(1, ...months.map((m) => m.total)) * 1.25;
+  const maxValue = getChartMaxValue(months);
   const currentMonthIndex = months.length - 1;
   const usableWidth = CHART_WIDTH - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN;
   const step = months.length > 1 ? usableWidth / (months.length - 1) : 0;
@@ -67,4 +71,17 @@ export function getChartPoints(months: MonthlyTotal[]): ChartPoint[] {
     x: round2(CHART_LEFT_MARGIN + index * step),
     y: round2(CHART_BASELINE_Y - (m.total / maxValue) * (CHART_BASELINE_Y - CHART_TOP_Y)),
   }));
+}
+
+export function getChartYAxisTicks(months: MonthlyTotal[]): ChartYAxisTick[] {
+  const maxValue = getChartMaxValue(months);
+  const tickCount = 4;
+
+  return Array.from({ length: tickCount + 1 }, (_, index) => {
+    const value = (maxValue / tickCount) * index;
+    return {
+      value: round2(value),
+      y: round2(CHART_BASELINE_Y - (value / maxValue) * (CHART_BASELINE_Y - CHART_TOP_Y)),
+    };
+  });
 }

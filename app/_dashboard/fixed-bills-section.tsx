@@ -51,15 +51,13 @@ export function FixedBillsSection() {
   if (!data) return null;
 
   return (
-    <section className="border-t border-border/10 pb-4 pt-11">
-      <FixedBillsView
-        bills={data.bills}
-        alerts={data.alerts}
-        total={data.total}
-        page={data.page}
-        totalPages={data.totalPages}
-        onChanged={() => setReloadKey((key) => key + 1)}
-      />
-    </section>
+    <FixedBillsView
+      bills={data.bills}
+      alerts={data.alerts}
+      total={data.total}
+      page={data.page}
+      totalPages={data.totalPages}
+      onChanged={() => setReloadKey((key) => key + 1)}
+    />
   );
 }

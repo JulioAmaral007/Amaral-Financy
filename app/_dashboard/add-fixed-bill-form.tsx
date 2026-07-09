@@ -59,7 +59,7 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="mb-5 flex flex-col gap-3 rounded-xl border border-border/8 bg-input p-5"
+      className="mb-4 flex flex-col gap-3 border-[1.5px] border-rule-faint bg-paper-dim p-[18px]"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FormField label="Nome da conta" htmlFor="bill-name" error={formState.errors.name?.message}>
@@ -89,7 +89,7 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
           </Select>
         </FormField>
       </div>
-      {error && <p className="text-[13px] text-danger-soft">{error}</p>}
+      {error && <p className="text-[12.5px] text-red">!! {error}</p>}
       <div className="flex justify-end gap-2.5">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar

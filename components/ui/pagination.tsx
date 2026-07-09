@@ -28,13 +28,13 @@ export function Pagination({ page, totalPages, paramName = "page" }: PaginationP
   }
 
   return (
-    <div className="mt-4 flex items-center justify-between text-[13px] text-foreground/55">
+    <div className="mt-4 flex items-center justify-between text-[12px] uppercase tracking-[0.1em] text-ink-faint">
       <Link
         href={hrefForPage(prevPage)}
         aria-disabled={isFirst}
-        className={cn("font-semibold transition-colors", isFirst ? "pointer-events-none opacity-40" : "hover:text-foreground")}
+        className={cn("font-bold transition-colors", isFirst ? "pointer-events-none opacity-40" : "hover:text-ink")}
       >
-        ← Anterior
+        &lt;- Anterior
       </Link>
       <span>
         Página {page} de {totalPages}
@@ -42,9 +42,9 @@ export function Pagination({ page, totalPages, paramName = "page" }: PaginationP
       <Link
         href={hrefForPage(nextPage)}
         aria-disabled={isLast}
-        className={cn("font-semibold transition-colors", isLast ? "pointer-events-none opacity-40" : "hover:text-foreground")}
+        className={cn("font-bold transition-colors", isLast ? "pointer-events-none opacity-40" : "hover:text-ink")}
       >
-        Próxima →
+        Próxima -&gt;
       </Link>
     </div>
   );

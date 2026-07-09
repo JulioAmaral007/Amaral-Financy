@@ -3,14 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+import { Card } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
+import { ReceiptTitle, SectionLabel, StarDivider } from "@/components/ui/receipt";
+import { cn } from "@/lib/utils";
 import { onHistoryUpdated } from "@/lib/history-events";
 import * as billSplitChartService from "@/services/bill-split-chart.service";
 import * as billSplitService from "@/services/bill-split.service";
 import * as fixedBillService from "@/services/fixed-bill.service";
 import * as historyService from "@/services/history.service";
 import * as profileService from "@/services/profile.service";
-import type { ChartPoint } from "@/types/bill-split";
+import type { ChartPoint, ChartYAxisTick } from "@/types/bill-split";
 import type { FixedBill } from "@/types/fixed-bill";
 import type { HistoryEntry } from "@/types/history";
 
@@ -20,6 +23,7 @@ import { PersonTotals } from "./person-totals";
 
 interface HistoryData {
   chartPoints: ChartPoint[];
+  chartYAxisTicks: ChartYAxisTick[];
   delta: { label: string; positive: boolean } | null;
   historyForYear: HistoryEntry[];
   fixedBills: FixedBill[];
@@ -51,10 +55,12 @@ export function HistorySection() {
       const fixedBillsTotal = fixedBills.reduce((sum, bill) => sum + bill.amount, 0);
       const monthlyTotals = billSplitChartService.getYearlyMonthlyTotals(historyForYear, fixedBillsTotal);
       const chartPoints = billSplitChartService.getChartPoints(monthlyTotals);
+      const chartYAxisTicks = billSplitChartService.getChartYAxisTicks(monthlyTotals);
       const delta = billSplitChartService.getMonthDelta(monthlyTotals);
 
       setData({
         chartPoints,
+        chartYAxisTicks,
         delta,
         historyForYear,
         fixedBills,
@@ -94,35 +100,47 @@ export function HistorySection() {
   const activeMonthLabel = data.chartPoints.find((point) => point.month === activeMonth)?.label ?? "";
 
   return (
-    <section className="mb-16">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-2.5">
+    <Card className="-rotate-[0.3deg]">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-[30px] text-foreground">Gastos no Ano</h2>
-          <p className="mt-1 text-[13.5px] text-foreground/60">Total de contas fixas + avulsas por mês</p>
+          <ReceiptTitle className="text-[27px] tracking-[0.08em]">GASTOS NO ANO</ReceiptTitle>
+          <p className="mt-0.5 text-[12px] uppercase tracking-[0.14em] text-ink-faint">
+            contas fixas + avulsas por mês
+          </p>
         </div>
         {data.delta && (
           <span
-            className={
-              data.delta.positive
-                ? "rounded-full bg-primary/14 px-2.5 py-1 text-[12.5px] font-semibold text-primary-soft"
-                : "rounded-full bg-amber/14 px-2.5 py-1 text-[12.5px] font-semibold text-amber-soft"
-            }
+            className={cn(
+              "inline-block -rotate-3 whitespace-nowrap border-2 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.12em] opacity-85",
+              data.delta.positive ? "border-green text-green" : "border-red text-red"
+            )}
           >
             {data.delta.label}
           </span>
         )}
       </div>
 
-      <HistoryChart points={data.chartPoints} selectedMonth={activeMonth} onSelectMonth={setSelectedMonth} />
+      <StarDivider className="my-4" />
 
-      <p className="mb-3 text-[13.5px] font-semibold text-foreground">
-        Quanto cada salário pagou em <span className="text-primary-soft">{activeMonthLabel}</span>
-      </p>
-      <PersonTotals totals={personTotals} />
+      <HistoryChart
+        points={data.chartPoints}
+        yAxisTicks={data.chartYAxisTicks}
+        selectedMonth={activeMonth}
+        onSelectMonth={setSelectedMonth}
+      />
 
-      <p className="mb-3 text-[13.5px] font-semibold text-foreground">Histórico de Cálculos</p>
-      <HistoryList entries={data.historyItems} onChanged={() => setReloadKey((key) => key + 1)} />
-      <Pagination page={data.page} totalPages={data.totalPages} paramName="historyPage" />
-    </section>
+      <div className="mt-4 border-t-2 border-dashed border-rule-faint pt-4">
+        <SectionLabel className="mb-2.5">
+          Quanto cada salário pagou em {activeMonthLabel}
+        </SectionLabel>
+        <PersonTotals totals={personTotals} />
+      </div>
+
+      <div className="mt-4 border-t-2 border-dashed border-rule-faint pt-4">
+        <SectionLabel className="mb-1.5">Histórico de cálculos</SectionLabel>
+        <HistoryList entries={data.historyItems} onChanged={() => setReloadKey((key) => key + 1)} />
+        <Pagination page={data.page} totalPages={data.totalPages} paramName="historyPage" />
+      </div>
+    </Card>
   );
 }

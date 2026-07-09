@@ -14,23 +14,25 @@ interface FixedBillRowProps {
   onChanged: () => void;
 }
 
-const STATUS_BORDER: Record<FixedBillStatus, string> = {
-  overdue: "border-danger/40",
-  upcoming: "border-amber/40",
-  ok: "border-border/6",
+const STATUS_STAMP: Record<FixedBillStatus, string> = {
+  overdue: "-rotate-3 rounded-[4px] border-2 border-red px-2 py-0.5 text-red opacity-85",
+  upcoming: "-rotate-3 rounded-[4px] border-2 border-ink-soft px-2 py-0.5 text-ink-soft opacity-85",
+  ok: "text-ink-faint",
 };
 
 const STATUS_LABEL: Record<FixedBillStatus, string> = {
   overdue: "Atrasada",
-  upcoming: "Vence em breve",
-  ok: "Pendente",
+  upcoming: "Vence logo",
+  ok: "pendente",
 };
 
 export function FixedBillRow({ bill, onChanged }: FixedBillRowProps) {
   const [isPending, startTransition] = useTransition();
 
-  const borderClass = bill.isPaid ? "border-border/6" : STATUS_BORDER[bill.status];
-  const statusLabel = bill.isPaid ? "Pago este mês" : STATUS_LABEL[bill.status];
+  const stampClass = bill.isPaid
+    ? "-rotate-3 rounded-[4px] border-2 border-red px-2 py-0.5 text-red opacity-85"
+    : STATUS_STAMP[bill.status];
+  const statusLabel = bill.isPaid ? "Pago" : STATUS_LABEL[bill.status];
 
   function handleTogglePaid() {
     startTransition(async () => {
@@ -55,7 +57,12 @@ export function FixedBillRow({ bill, onChanged }: FixedBillRowProps) {
   }
 
   return (
-    <div className={cn("flex items-center gap-3.5 rounded-xl border bg-input px-4 py-3.5", borderClass)}>
+    <div
+      className={cn(
+        "flex items-center gap-3.5 border-b border-dashed border-rule-faint px-1 py-3",
+        !bill.isPaid && bill.status === "overdue" && "bg-red-soft"
+      )}
+    >
       <ToggleCheck
         checked={bill.isPaid}
         onClick={handleTogglePaid}
@@ -63,20 +70,27 @@ export function FixedBillRow({ bill, onChanged }: FixedBillRowProps) {
         aria-label={`Marcar ${bill.name} como pago`}
       />
       <div className="min-w-0 flex-1">
-        <p className="text-[14.5px] font-semibold text-foreground">{bill.name}</p>
-        <p className="text-xs text-foreground/50">
-          {bill.category} · Todo dia {bill.dueDay} · {bill.payerLabel}
+        <p className="text-[14.5px] font-bold text-ink">{bill.name}</p>
+        <p className="text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
+          {bill.category} · todo dia {bill.dueDay} · {bill.payerLabel}
         </p>
       </div>
-      <div className="flex-none text-right">
-        <p className="font-mono text-[14.5px] font-bold text-foreground">{formatCurrencyBRL(bill.amount)}</p>
-        <p className="text-[11.5px] text-foreground/45">{statusLabel}</p>
+      <span
+        className={cn(
+          "inline-block whitespace-nowrap text-[10.5px] font-bold uppercase tracking-[0.12em]",
+          stampClass
+        )}
+      >
+        {statusLabel}
+      </span>
+      <div className="w-[110px] flex-none text-right text-[14.5px] font-bold text-ink">
+        {formatCurrencyBRL(bill.amount)}
       </div>
       <button
         type="button"
         onClick={handleRemove}
         disabled={isPending}
-        className="flex-none px-1.5 text-lg text-foreground/35 transition-colors hover:text-foreground/60 disabled:opacity-50"
+        className="flex-none px-1.5 text-[17px] leading-none text-ink-faint transition-colors hover:text-ink disabled:opacity-50"
         aria-label={`Remover ${bill.name}`}
       >
         ×

@@ -1,15 +1,17 @@
-import { CalculatorForm } from "./calculator-form";
+"use client";
+
+import { useState } from "react";
+
+import { CalculatorForm, type CalculatorResultPayload } from "./calculator-form";
+import { CalculatorResultPanel } from "./calculator-result-panel";
 
 export function CalculatorSection() {
+  const [payload, setPayload] = useState<CalculatorResultPayload | null>(null);
+
   return (
-    <section className="mb-16 border-t border-border/10 pt-11">
-      <div className="mb-7">
-        <h2 className="text-[30px] text-foreground">Calculadora</h2>
-        <p className="mt-1 text-[13.5px] text-foreground/60">
-          Divida a conta usando o salário 1 como prioritário
-        </p>
-      </div>
-      <CalculatorForm />
+    <section className="flex flex-col gap-8 lg:sticky lg:top-24">
+      <CalculatorForm onResult={setPayload} />
+      <CalculatorResultPanel payload={payload} />
     </section>
   );
 }

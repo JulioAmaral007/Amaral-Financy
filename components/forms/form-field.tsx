@@ -10,11 +10,14 @@ interface FormFieldProps {
 export function FormField({ label, htmlFor, error, children }: FormFieldProps) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="mb-2 block text-sm font-medium text-foreground/70">
+      <label
+        htmlFor={htmlFor}
+        className="mb-0.5 block text-[11px] font-normal uppercase tracking-[0.2em] text-ink-soft"
+      >
         {label}
       </label>
       {children}
-      {error && <p className="mt-1.5 text-[13px] text-danger-soft">{error}</p>}
+      {error && <p className="mt-1.5 text-[12.5px] text-red">!! {error}</p>}
     </div>
   );
 }

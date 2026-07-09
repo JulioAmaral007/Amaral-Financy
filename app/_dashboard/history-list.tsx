@@ -10,12 +10,12 @@ interface HistoryListProps {
 export function HistoryList({ entries, onChanged }: HistoryListProps) {
   if (entries.length === 0) {
     return (
-      <p className="py-6 text-center text-sm text-foreground/45">Nenhum cálculo registrado ainda.</p>
+      <p className="py-6 text-center text-[13px] text-ink-faint">Nenhum cálculo registrado ainda.</p>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col">
       {entries.map((entry) => (
         <HistoryEntryRow key={entry.id} entry={entry} onChanged={onChanged} />
       ))}

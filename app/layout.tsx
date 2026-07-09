@@ -1,33 +1,50 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import { Courier_Prime, Special_Elite } from "next/font/google";
 
 import { Toaster } from "@/components/feedback/toaster";
 import { Header } from "@/components/layout/header";
+import * as accountService from "@/services/account.service";
 import "./globals.css";
 
-const jetbrainsMono = JetBrains_Mono({
+const courierPrime = Courier_Prime({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "700"],
   style: ["normal", "italic"],
-  variable: "--font-jetbrains-mono",
+  variable: "--font-courier-prime",
+});
+
+const specialElite = Special_Elite({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-special-elite",
 });
 
 export const metadata: Metadata = {
-  title: "Divisão de Contas",
-  description: "Divida suas contas usando o salário 1 como prioritário",
+  title: "Rumo",
+  description: "Divida contas, acompanhe metas e controle seu recebimento PJ em um só lugar.",
+  icons: {
+    icon: [
+      { url: "/assets/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/assets/favicon-64.png", sizes: "64x64", type: "image/png" },
+      { url: "/assets/favicon-256.png", sizes: "256x256", type: "image/png" },
+    ],
+    apple: { url: "/assets/favicon-256.png", sizes: "256x256", type: "image/png" },
+  },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const account = await accountService.getAccountProfile();
+
   return (
-    <html lang="pt-BR" className={jetbrainsMono.variable}>
+    <html lang="pt-BR" className={`${courierPrime.variable} ${specialElite.variable}`}>
       <body className="antialiased">
         <div className="min-h-screen">
-          <Header />
-          <div className="mx-auto max-w-[1180px] px-8 py-11 sm:px-14">{children}</div>
+          <Header account={account} />
+          <div className="mx-auto max-w-[1080px] overflow-x-clip px-6 py-12 sm:px-8">{children}</div>
         </div>
         <Toaster />
       </body>

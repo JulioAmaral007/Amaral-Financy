@@ -1,89 +1,177 @@
 @import "tailwindcss";
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0px;
 
-  /* Surfaces (Bill Split design — Claude Design project) */
-  --background: oklch(13% 0.01 210);
-  --panel: oklch(15% 0.01 210);
-  --surface: oklch(17% 0.012 210);
-  --input: oklch(22% 0.012 210);
-  --foreground: oklch(95% 0.005 210);
-  --border: #ffffff;
+  /* ── Rumo Recibo — vintage receipt / ledger palette ─────────────── */
+  --paper: oklch(97.5% 0.012 95);
+  --paper-dim: oklch(93.5% 0.018 92);
+  --ink: oklch(25% 0.035 264);
+  --ink-soft: oklch(42% 0.03 264);
+  --ink-faint: oklch(56% 0.02 264);
+  --rule: oklch(30% 0.03 264 / 0.4);
+  --rule-faint: oklch(30% 0.03 264 / 0.16);
+  --red: oklch(50% 0.19 27);
+  --red-soft: oklch(50% 0.19 27 / 0.09);
+  --blue: oklch(44% 0.11 262);
+  --blue-soft: oklch(44% 0.11 262 / 0.09);
+  --green: oklch(48% 0.12 155);
+  --green-soft: oklch(48% 0.12 155 / 0.1);
 
-  /* Green (primary / Salário 1) */
-  --primary: oklch(78% 0.19 150);
-  --primary-foreground: oklch(14% 0.02 150);
-  --primary-soft: oklch(80% 0.18 150);
+  /* Kraft-paper page backdrop */
+  --page-top: oklch(87% 0.025 84);
+  --page-bottom: oklch(81% 0.035 78);
 
-  /* Blue (Salário 2) */
-  --blue: oklch(70% 0.12 235);
-  --blue-soft: oklch(78% 0.1 235);
+  /* ── Legacy token bridge — maps the old Bill Split names to the
+        receipt palette so any un-touched component still renders warm. ── */
+  --background: var(--paper-dim);
+  --panel: var(--paper);
+  --surface: var(--paper);
+  --input: var(--paper);
+  --foreground: var(--ink);
+  --border: var(--ink);
 
-  /* Purple (Salário 3) */
-  --purple: oklch(72% 0.13 325);
-  --purple-soft: oklch(80% 0.1 325);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --primary-soft: var(--ink);
 
-  /* Amber (bill value / warnings) */
-  --amber: oklch(72% 0.14 70);
-  --amber-soft: oklch(84% 0.13 70);
+  --purple: var(--red);
+  --purple-soft: var(--red);
 
-  /* Danger (errors / overdue) */
-  --danger: oklch(62% 0.18 25);
-  --danger-soft: oklch(75% 0.15 25);
+  --amber: var(--ink-soft);
+  --amber-soft: var(--ink-soft);
+
+  --danger: var(--red);
+  --danger-soft: var(--red);
 }
 
 @theme inline {
+  /* Receipt-native color utilities: bg-paper, text-ink, border-rule, … */
+  --color-paper: var(--paper);
+  --color-paper-dim: var(--paper-dim);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-rule: var(--rule);
+  --color-rule-faint: var(--rule-faint);
+  --color-red: var(--red);
+  --color-red-soft: var(--red-soft);
+  --color-blue: var(--blue);
+  --color-blue-soft: var(--blue-soft);
+  --color-green: var(--green);
+  --color-green-soft: var(--green-soft);
+
+  /* Legacy names kept so old classes keep resolving */
   --color-background: var(--background);
   --color-panel: var(--panel);
   --color-surface: var(--surface);
   --color-input: var(--input);
   --color-foreground: var(--foreground);
   --color-border: var(--border);
-
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-soft: var(--primary-soft);
-
-  --color-blue: var(--blue);
-  --color-blue-soft: var(--blue-soft);
-
   --color-purple: var(--purple);
   --color-purple-soft: var(--purple-soft);
-
   --color-amber: var(--amber);
   --color-amber-soft: var(--amber-soft);
-
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
 
-  --font-sans: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, monospace;
-  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, monospace;
+  --font-display: var(--font-special-elite), "Special Elite", ui-monospace, monospace;
+  --font-sans: var(--font-courier-prime), "Courier Prime", ui-monospace, monospace;
+  --font-mono: var(--font-courier-prime), "Courier Prime", ui-monospace, monospace;
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
 }
 
 @layer base {
   * {
-    @apply border-border/10;
+    @apply border-rule-faint;
   }
 
   body {
-    @apply bg-background text-foreground;
+    color: var(--ink);
     font-family: var(--font-sans);
+    background:
+      radial-gradient(130% 100% at 50% 0%, var(--page-top), var(--page-bottom)) fixed;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  ::selection {
+    background: oklch(50% 0.19 27 / 0.22);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: oklch(56% 0.02 264 / 0.7);
+  }
 }
 
-@keyframes fade-in {
+/* ── Receipt motifs ───────────────────────────────────────────────── */
+@layer components {
+  /* Paper card: warm sheet, drop shadow, torn/perforated bottom edge. */
+  .paper-card {
+    position: relative;
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 16px 38px -18px oklch(30% 0.05 80 / 0.55);
+  }
+
+  .paper-card::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -10px;
+    height: 10px;
+    background:
+      linear-gradient(-45deg, var(--paper) 7px, transparent 0),
+      linear-gradient(45deg, var(--paper) 7px, transparent 0);
+    background-size: 14px 14px;
+    background-repeat: repeat-x;
+    background-position: left top;
+  }
+
+  /* Dotted "leader" filler between a label and its value. */
+  .leader {
+    flex: 1;
+    border-bottom: 2px dotted var(--rule-faint);
+    margin: 0 6px 4px;
+  }
+
+  /* Rotated rubber-stamp tag. */
+  .stamp {
+    display: inline-block;
+    border: 2px solid var(--red);
+    color: var(--red);
+    padding: 2px 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    white-space: nowrap;
+    transform: rotate(-4deg);
+    background: transparent;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeSlideIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(-5px);
   }
   to {
     opacity: 1;
@@ -91,6 +179,17 @@
   }
 }
 
+@keyframes stampIn {
+  from {
+    opacity: 0;
+    transform: rotate(-7deg) scale(1.7);
+  }
+  to {
+    opacity: 0.9;
+    transform: rotate(-7deg) scale(1);
+  }
+}
+
 .animate-fade-in {
-  animation: fade-in 0.3s ease-out;
+  animation: fadeSlideIn 0.3s ease-out;
 }

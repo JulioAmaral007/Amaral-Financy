@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
@@ -6,25 +8,25 @@ interface LogoProps {
 }
 
 const sizes = {
-  xs: { box: "h-[26px] w-[26px] rounded-[8px]", text: "text-[13px]" },
-  sm: { box: "h-9 w-9 rounded-[10px]", text: "text-base" },
-  md: { box: "h-12 w-12 rounded-xl", text: "text-xl" },
-  lg: { box: "h-14 w-14 rounded-xl", text: "text-2xl" },
+  xs: 26,
+  sm: 36,
+  md: 48,
+  lg: 56,
 };
 
+/** The Rumo "R" monogram stamp tile (public/assets/rumo-monograma.png). */
 export function Logo({ className, size = "md" }: LogoProps) {
-  const current = sizes[size];
+  const px = sizes[size];
 
   return (
-    <div
-      className={cn(
-        "flex items-center justify-center bg-primary font-extrabold text-primary-foreground",
-        current.box,
-        current.text,
-        className
-      )}
-    >
-      ÷
-    </div>
+    <Image
+      src="/assets/rumo-monograma.png"
+      alt="Rumo"
+      width={px}
+      height={px}
+      priority
+      className={cn("-rotate-3 select-none", className)}
+      style={{ width: px, height: px }}
+    />
   );
 }

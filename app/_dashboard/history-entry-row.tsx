@@ -27,23 +27,22 @@ export function HistoryEntryRow({ entry, onChanged }: HistoryEntryRowProps) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-[10px] border border-border/6 bg-input px-4 py-3">
-      <span className="w-12 flex-none text-xs text-foreground/45">
+    <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 border-b border-dashed border-rule-faint py-2.5 text-[14px]">
+      <span className="w-[52px] flex-none text-[12px] text-ink-faint">
         {new Date(entry.calculatedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
       </span>
-      <span className="flex-1 font-mono text-[13.5px] font-semibold text-foreground">
-        {formatCurrencyBRL(entry.billAmount)}
-      </span>
-      <div className="flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-[11.5px]">
-        <span className="text-primary-soft">S1 {formatCurrencyBRL(entry.salary1Payment)}</span>
-        <span className="text-blue-soft">S2 {formatCurrencyBRL(entry.salary2Payment)}</span>
-        <span className="text-purple-soft">S3 {formatCurrencyBRL(entry.salary3Payment)}</span>
+      <span className="font-bold text-ink">{formatCurrencyBRL(entry.billAmount)}</span>
+      <span className="leader hidden sm:block" />
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <span className="text-[12px] text-ink-soft">S1 {formatCurrencyBRL(entry.salary1Payment)}</span>
+        <span className="text-[12px] text-blue">S2 {formatCurrencyBRL(entry.salary2Payment)}</span>
+        <span className="text-[12px] text-red">S3 {formatCurrencyBRL(entry.salary3Payment)}</span>
       </div>
       <button
         type="button"
         onClick={handleRemove}
         disabled={isPending}
-        className="flex-none px-1.5 text-lg text-foreground/35 transition-colors hover:text-foreground/60 disabled:opacity-50"
+        className="ml-auto flex-none px-1.5 text-[17px] leading-none text-ink-faint transition-colors hover:text-ink disabled:opacity-50"
         aria-label="Remover cálculo do histórico"
       >
         ×
