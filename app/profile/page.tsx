@@ -25,13 +25,13 @@ export default async function ProfilePage() {
 
       <Card className="rotate-[0.25deg]">
         <div className="mb-6 text-center">
-          <ReceiptTitle className="text-[26px] tracking-[0.1em]">FICHA CADASTRAL</ReceiptTitle>
+          <ReceiptTitle className="text-[21px] tracking-[0.1em] sm:text-[26px]">FICHA CADASTRAL</ReceiptTitle>
           <div className="mt-1 text-[12px] tracking-[0.18em] text-ink-soft">
             * * * * * * * * * * * * * * * * * * * *
           </div>
         </div>
 
-        <div className="grid items-start gap-9 lg:grid-cols-[300px_1fr]">
+        <div className="grid grid-cols-1 items-start gap-9 lg:grid-cols-[300px_1fr]">
           <div className="border-b-2 border-dashed border-rule-faint pb-6 lg:border-b-0 lg:border-r-2 lg:pb-0 lg:pr-9">
             <AccountCard account={account} />
           </div>

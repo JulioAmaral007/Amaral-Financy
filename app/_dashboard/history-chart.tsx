@@ -12,7 +12,12 @@ export function HistoryChart({ points, yAxisTicks, selectedMonth, onSelectMonth 
   const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
 
   return (
-    <svg viewBox="0 0 640 200" className="block h-auto w-full">
+    <svg
+      viewBox="0 0 640 200"
+      preserveAspectRatio="xMidYMid meet"
+      className="block h-auto w-full"
+      style={{ aspectRatio: "640 / 200" }}
+    >
       {yAxisTicks.map((tick) => (
         <g key={tick.value}>
           <line

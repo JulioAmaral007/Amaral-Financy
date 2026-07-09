@@ -34,7 +34,7 @@ export async function updateCdiRateAction(input: unknown): Promise<AccountAction
   }
 
   revalidatePath("/profile");
-  revalidatePath("/goals");
+  revalidatePath("/investments");
   return {};
 }
 

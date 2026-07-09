@@ -53,9 +53,14 @@ function LeaderRow({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-baseline py-1.5 text-[13.5px]", className)}>
+    <div
+      className={cn(
+        "flex flex-wrap items-baseline justify-between gap-x-3 py-1.5 text-[13px] sm:flex-nowrap sm:text-[13.5px]",
+        className
+      )}
+    >
       <span className="text-ink-soft">{label}</span>
-      <span className="leader" />
+      <span className="leader hidden sm:block" />
       <span className={cn("font-bold text-ink", valueClassName)}>{value}</span>
     </div>
   );

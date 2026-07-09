@@ -138,6 +138,23 @@
     background-position: left top;
   }
 
+  /* Header as a torn-off ticket stub: same perforated edge as .paper-card,
+     sitting flush at the bottom instead of hanging below. */
+  .paper-header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -7px;
+    height: 7px;
+    background:
+      linear-gradient(-45deg, var(--paper) 5px, transparent 0),
+      linear-gradient(45deg, var(--paper) 5px, transparent 0);
+    background-size: 10px 10px;
+    background-repeat: repeat-x;
+    background-position: left top;
+  }
+
   /* Dotted "leader" filler between a label and its value. */
   .leader {
     flex: 1;

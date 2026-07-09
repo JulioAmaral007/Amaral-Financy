@@ -8,8 +8,14 @@ Vá em **Project → SQL Editor → New query** e rode, **nesta ordem**, o conte
 
 1. `supabase/migrations/20260706000000_create_profiles.sql`
 2. `supabase/migrations/20260707000000_create_goals_and_pj.sql`
+3. `supabase/migrations/20260708000000_add_pj_cycle_day_shifts.sql`
+4. `supabase/migrations/20260709000000_drop_pj_cycle_day_note.sql`
+5. `supabase/migrations/20260710000000_replace_goals_with_investments.sql`
 
-Isso cria `profiles`, `goals`, `pj_cycles`, `pj_cycle_days` com RLS habilitado, os triggers de `updated_at` e o trigger que cria automaticamente uma `profile` quando um usuário se cadastra.
+Isso cria `profiles`, `pj_cycles`, `pj_cycle_days`, `investment_assets`, `investment_settings`,
+`investment_snapshots` e `investment_incomes` com RLS habilitado, os triggers de `updated_at` e o trigger que cria
+automaticamente uma `profile` quando um usuário se cadastra. A migration 5 remove a tabela `goals` — a feature de
+metas foi substituída pela carteira de investimentos.
 
 ## 2. Configurar URL Configuration
 

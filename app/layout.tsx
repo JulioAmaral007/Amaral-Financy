@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Courier_Prime, Special_Elite } from "next/font/google";
 
 import { Toaster } from "@/components/feedback/toaster";
@@ -19,9 +19,15 @@ const specialElite = Special_Elite({
   variable: "--font-special-elite",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export const metadata: Metadata = {
   title: "Rumo",
-  description: "Divida contas, acompanhe metas e controle seu recebimento PJ em um só lugar.",
+  description: "Divida contas, acompanhe sua carteira de investimentos e controle seu recebimento PJ em um só lugar.",
   icons: {
     icon: [
       { url: "/assets/favicon-32.png", sizes: "32x32", type: "image/png" },
@@ -42,9 +48,9 @@ export default async function RootLayout({
   return (
     <html lang="pt-BR" className={`${courierPrime.variable} ${specialElite.variable}`}>
       <body className="antialiased">
-        <div className="min-h-screen">
+        <div className="min-h-screen overflow-x-clip">
           <Header account={account} />
-          <div className="mx-auto max-w-[1080px] overflow-x-clip px-6 py-12 sm:px-8">{children}</div>
+          <div className="mx-auto max-w-[1080px] overflow-x-clip px-4 py-8 sm:px-8 sm:py-12">{children}</div>
         </div>
         <Toaster />
       </body>

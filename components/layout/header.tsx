@@ -20,7 +20,7 @@ function getInitials(name: string, email: string): string {
 
 const navItems = [
   { href: "/", label: "Início" },
-  { href: "/goals", label: "Metas" },
+  { href: "/investments", label: "Investimentos" },
   { href: "/pj", label: "PJ" },
 ];
 
@@ -31,16 +31,20 @@ export function Header({ account }: HeaderProps) {
   if (pathname === "/login") return null;
 
   return (
-    <header className="sticky top-0 z-10 flex items-center gap-8 border-b-[2.5px] border-ink bg-paper px-6 py-3.5 shadow-[0_12px_26px_-20px_oklch(30%_0.05_80/0.8)] sm:px-10">
-      <Link href="/" className="flex flex-none items-center gap-2.5">
-        <Logo size="sm" className="transition-transform hover:rotate-0" />
-        <span className="font-display text-[22px] tracking-[0.12em] text-ink">RUMO</span>
+    <header className="paper-header sticky top-0 z-10 flex items-center gap-3 bg-paper px-4 py-4 shadow-[0_12px_26px_-20px_oklch(30%_0.05_80/0.8)] sm:gap-6 sm:px-10 sm:py-4">
+      <Link href="/" className="flex min-w-0 flex-none items-center gap-2 sm:gap-3">
+        <Logo size="sm" className="flex-none transition-transform hover:rotate-0" />
+        <span className="font-display text-[17px] tracking-[0.1em] text-ink sm:text-[22px] sm:tracking-[0.12em]">
+          RUMO
+        </span>
         <span className="hidden text-[10px] uppercase tracking-[0.24em] text-ink-faint sm:inline">
           livro de contas
         </span>
       </Link>
 
-      <nav className="flex items-center gap-5 sm:gap-6">
+      <span aria-hidden className="hidden h-6 w-px flex-none border-l-2 border-dotted border-rule-faint sm:block" />
+
+      <nav className="flex min-w-0 items-center gap-3 sm:gap-6">
         {navItems.map((item) => {
           const active = pathname === item.href;
           return (
@@ -48,7 +52,7 @@ export function Header({ account }: HeaderProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "text-[13px] uppercase tracking-[0.16em] transition-colors",
+                "whitespace-nowrap text-[11px] uppercase tracking-[0.1em] transition-colors sm:text-[13px] sm:tracking-[0.16em]",
                 active
                   ? "font-bold text-ink underline decoration-red decoration-wavy decoration-2 underline-offset-[6px]"
                   : "font-normal text-ink-soft hover:text-ink"
@@ -60,7 +64,7 @@ export function Header({ account }: HeaderProps) {
         })}
       </nav>
 
-      <div className="flex-1" />
+      <div className="min-w-0 flex-1" />
 
       <span className="hidden text-[11.5px] tracking-[0.12em] text-ink-faint sm:inline" suppressHydrationWarning>
         {today}
@@ -70,7 +74,7 @@ export function Header({ account }: HeaderProps) {
         <Link
           href="/profile"
           aria-label="Perfil"
-          className="flex h-[34px] w-[34px] flex-none -rotate-3 items-center justify-center rounded-full border-2 border-ink text-[12px] font-bold tracking-[0.05em] text-ink transition-transform hover:rotate-0"
+          className="flex h-[32px] w-[32px] flex-none -rotate-3 items-center justify-center rounded-full border-2 border-ink text-[11px] font-bold tracking-[0.05em] text-ink transition-transform hover:rotate-0 sm:h-[36px] sm:w-[36px] sm:text-[12px]"
         >
           {getInitials(account.name, account.email)}
         </Link>

@@ -103,7 +103,7 @@ export function HistorySection() {
     <Card className="-rotate-[0.3deg]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <ReceiptTitle className="text-[27px] tracking-[0.08em]">GASTOS NO ANO</ReceiptTitle>
+          <ReceiptTitle className="text-[21px] tracking-[0.08em] sm:text-[27px]">GASTOS NO ANO</ReceiptTitle>
           <p className="mt-0.5 text-[12px] uppercase tracking-[0.14em] text-ink-faint">
             contas fixas + avulsas por mês
           </p>

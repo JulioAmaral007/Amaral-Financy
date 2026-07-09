@@ -14,8 +14,9 @@ Four user-facing areas:
   should be split (`services/bill-split.service.ts:calculateSalarySplit`): salary 1 pays first up to its own
   limit, then the remainder splits proportionally between salary 2/3. Also tracks recurring fixed bills and a
   calculation history with a monthly chart.
-- **Goals** (`/goals`, `app/_goals/`) — investment goal simulator (target value, monthly contribution, CDI% or
-  fixed annual rate) that projects a month-by-month balance and estimated completion date.
+- **Investments** (`/investments`, `app/_investments/`) — investment portfolio: assets (ticker, class, quantity,
+  average/current price), allocation vs. the investor profile's target, emergency reserve, contributions and
+  dividends, portfolio return vs. CDI/IPCA, and a compound-interest contribution simulator.
 - **PJ** (`/pj`, `app/_pj/`) — freelance/hourly work cycle tracker: configure a pay cycle (date range, hourly
   rate, daily journey length, which weekdays count), check off worked days, and see predicted vs. actual
   earnings; closing a cycle archives it and auto-starts the next one.
@@ -36,19 +37,19 @@ No test runner is configured yet.
 Requires `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The Supabase
 project's tables/RLS/triggers are **not** provisioned automatically — see `supabase/SETUP.md` and run the
 migrations in `supabase/migrations/` (in filename order) manually in the Supabase SQL editor before auth,
-goals, or PJ features will work end to end.
+investments, or PJ features will work end to end.
 
 ## Architecture — two pipelines, pick the right one
 
 `.claude/rules/*` describes a Supabase + Server Actions architecture (RLS, repositories hitting
-`supabase.from()`, `"use server"` actions, `revalidatePath`). That target shape is **fully real for Goals, PJ,
-Auth, and Account** — but the original Dashboard feature (calculator, fixed bills, history) still runs entirely
+`supabase.from()`, `"use server"` actions, `revalidatePath`). That target shape is **fully real for Investments,
+PJ, Auth, and Account** — but the original Dashboard feature (calculator, fixed bills, history) still runs entirely
 client-side against `window.localStorage` and predates that ruleset. Don't "upgrade" the Dashboard feature to
 Supabase or "restore" `"use server"` there without being asked; equally, don't add a localStorage repository
-for a new Goals/PJ/Account feature. Check which pipeline a file belongs to (below) before copying a pattern
+for a new Investments/PJ/Account feature. Check which pipeline a file belongs to (below) before copying a pattern
 from a neighboring file.
 
-### Pipeline A — Supabase (Goals, PJ, Auth, Account)
+### Pipeline A — Supabase (Investments, PJ, Auth, Account)
 
 ```
 Component ("use client")
@@ -59,15 +60,15 @@ Component ("use client")
 ```
 
 - Real Next.js Server Actions (`"use server"` at the top of the file) — see `actions/auth.actions.ts`,
-  `actions/goal.actions.ts`, `actions/pj.actions.ts`, `actions/account.actions.ts`. Mutations call
+  `actions/investment.actions.ts`, `actions/pj.actions.ts`, `actions/account.actions.ts`. Mutations call
   `revalidatePath` afterwards instead of the Dashboard's custom event bus.
 - Repositories take an explicit `userId` and filter every query by it (`.eq("user_id", userId)`) — RLS is the
   backstop, not the only check. Services get the current user via `authService.getCurrentUser()` and throw if
-  absent (see the repeated local `requireUserId()` helper in `services/goal.service.ts`, `services/pj.service.ts`).
+  absent (see the repeated local `requireUserId()` helper in `services/investment.service.ts`, `services/pj.service.ts`).
 - `lib/supabase/errors.ts` (`assertNoError`, `unwrapList`, `unwrapMaybe`) wraps every Supabase response so
   errors throw with repository context instead of silently returning `[]`/`null`.
 - DB rows are `snake_case`; repositories map to/from camelCase domain types by hand (see `mapRow`/`toRowInput`
-  in `repositories/goal.repository.ts`) — there is no generated `Database` type in this project despite what
+  in `repositories/investment-asset.repository.ts`) — there is no generated `Database` type in this project despite what
   `.claude/rules/database.md` assumes.
 - Route protection is in `proxy.ts` (the Next.js middleware file — note the non-standard filename), which calls
   `lib/supabase/middleware.ts:updateSession` to refresh the session and redirect unauthenticated users to
@@ -120,10 +121,21 @@ These are intentionally separate and not migrating into each other — don't con
   or filtered by date range, soft-deletable.
 - **Person totals** (`getPersonTotalsForMonth` in `services/bill-split.service.ts`): aggregates fixed bills +
   history entries for a month into per-salary totals — feeds the dashboard summary/chart.
-- **Goals** (`types/goal.ts`, `services/goal.service.ts`, `services/goal-math.service.ts`): a target value,
-  optional initial/monthly contribution, and either a CDI-percentage or fixed annual rate. `goal-math.service.ts`
-  compounds monthly to build a projection path, `monthsToGoal`, and `completionDate`. The account's
-  `cdiBaseRate` (default 10.65) feeds the CDI-mode calculation.
+- **Investments** (`types/investment.ts`, `services/investment.service.ts`, `services/investment-math.service.ts`,
+  `services/investment-view.service.ts`): `investment.service.ts` orchestrates auth + repositories,
+  `investment-math.service.ts` holds the client-safe pure math and domain metadata (`ASSET_CLASS_META`,
+  `INVESTOR_PROFILE_META` target allocations, compound-interest simulator, SVG chart projection), and
+  `investment-view.service.ts` turns raw rows into the formatted view model the screen renders.
+  - **Snapshots are the backbone of every return number.** `investment_snapshots` holds one row per month
+    (`total_value`, `total_cost`), re-upserted by `syncCurrentMonthSnapshot` after *every* asset mutation. Between
+    two months, the change in `total_cost` **is** the contribution (aporte) and whatever else moved `total_value`
+    is return. That's the only reason the app can tell "the portfolio grew because it yielded" apart from "the
+    portfolio grew because money came in" without a transactions table. Don't compute a return from raw
+    `total_value` deltas.
+  - Emergency reserve is **derived**, not stored: it's the total of the assets whose class is `renda_fixa`. Only
+    the monthly cost and target months live in `investment_settings`.
+  - CDI/IPCA benchmarks are *estimated* by compounding an annual rate (`profiles.cdi_base_rate`,
+    `investment_settings.ipca_annual_rate`) over the months elapsed this year — there is no market data feed.
 - **PJ cycles** (`types/pj.ts`, `services/pj.service.ts`, `services/pj-math.service.ts`): one `active` cycle per
   user at a time, enforced by a Postgres partial unique index (`pj_cycles_one_active_per_user`), not just
   application logic. A cycle has a date range, hourly rate, `journeyMode` (`h4`/`h8`/`custom` hours/day), and a
@@ -131,9 +143,10 @@ These are intentionally separate and not migrating into each other — don't con
   manual `hoursWorked` or four time-of-day fields (`morningStart/End`, `afternoonStart/End`) that
   `hoursWorkedFromTimes` converts to a duration. Closing a cycle (`pj.service.ts:closeCycle`) archives it with
   computed totals and immediately opens the next cycle via `buildNextCycleConfig`.
-- **Date-only Postgres columns**: `goal.startDate` and all PJ cycle/day dates are Postgres `date` (no
-  timezone). Never do `new Date(isoString)` on them — that parses as UTC midnight and can shift the calendar
-  day depending on local timezone. Always go through `parseISODateLocal` (`services/goal-math.service.ts`).
+- **Date-only Postgres columns**: PJ cycle/day dates, `investment_snapshots.month` and
+  `investment_incomes.received_at` are Postgres `date` (no timezone). Never do `new Date(isoString)` on them —
+  that parses as UTC midnight and can shift the calendar day depending on local timezone. Always go through
+  `parseISODateLocal` (`lib/date.ts`, which also holds `monthsBetween`/`addMonths`/`startOfMonthISO`).
 
 ## Conventions actually in effect
 

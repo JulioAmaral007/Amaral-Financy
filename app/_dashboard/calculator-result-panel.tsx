@@ -34,19 +34,19 @@ export function CalculatorResultPanel({ payload }: CalculatorResultPanelProps) {
         </div>
       </div>
 
-      <div className="flex items-baseline border-b border-dashed border-rule-faint py-2.5 text-[15px]">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-dashed border-rule-faint py-2.5 text-[14px] sm:flex-nowrap sm:text-[15px]">
         <span className="font-bold text-ink">SALÁRIO 1</span>
-        <span className="leader" />
+        <span className="leader hidden sm:block" />
         <span className="font-bold text-ink">{formatCurrencyBRL(result.salary1Payment)}</span>
       </div>
-      <div className="flex items-baseline border-b border-dashed border-rule-faint py-2.5 text-[15px]">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-dashed border-rule-faint py-2.5 text-[14px] sm:flex-nowrap sm:text-[15px]">
         <span className="font-bold text-blue">SALÁRIO 2</span>
-        <span className="leader" />
+        <span className="leader hidden sm:block" />
         <span className="font-bold text-blue">{formatCurrencyBRL(result.salary2Payment)}</span>
       </div>
-      <div className="flex items-baseline py-2.5 text-[15px]">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 py-2.5 text-[14px] sm:flex-nowrap sm:text-[15px]">
         <span className="font-bold text-red">SALÁRIO 3</span>
-        <span className="leader" />
+        <span className="leader hidden sm:block" />
         <span className="font-bold text-red">{formatCurrencyBRL(result.salary3Payment)}</span>
       </div>
 
