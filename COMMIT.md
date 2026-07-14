@@ -1,7 +1,12 @@
 # Comandos para subir as alterações
 
-Estado atual: branch `main`, com a feature de **Metas (goals)** removida e substituída pela
-feature de **Investimentos**, mais ajustes no PJ e helpers de data.
+Estado atual: branch `main`. As features de **Investimentos** e **PJ** foram removidas, todo o
+**Supabase** (auth, conta, perfil, middleware e clientes) saiu junto, e o app voltou a ser
+**single-user client-side** com persistência em `localStorage` só no Dashboard. Além disso, o
+layout do Dashboard foi reorganizado (gráfico em cima; calculadora e cupom lado a lado) e o cupom
+de divisão passou a aparecer vazio antes do cálculo.
+
+> Antes de commitar, confira: `npm run lint` e `npm run build` devem passar (ambos passaram aqui).
 
 ---
 
@@ -10,15 +15,19 @@ feature de **Investimentos**, mais ajustes no PJ e helpers de data.
 ```bash
 git add -A
 
-git commit -m "feat(investments): replace goals with investment portfolio tracking
+git commit -m "refactor: remove investments, PJ and Supabase; keep localStorage dashboard
 
-- Remove savings goals feature (pages, components, service, repository, schema, types)
-- Add investments: assets, allocation vs investor profile, emergency reserve,
-  contributions/dividends, portfolio return vs CDI/IPCA and contribution simulator
-- Add monthly snapshots as the basis for return calculation (cost vs value)
-- Add lib/date.ts with timezone-safe helpers for Postgres date columns
-- Drop unused pj_cycle_day.note column
-- Update CLAUDE.md, SETUP.md and header navigation"
+- Remove Investments feature (pages, components, service, repository, schema, types)
+- Remove PJ (freelance cycle) feature (pages, components, service, repository, schema, types)
+- Remove all Supabase usage: auth, account, profile, route middleware and SSR clients
+- Drop login/auth: app is now single-user and client-side only (localStorage)
+- Remove @supabase/ssr and @supabase/supabase-js and Supabase-specific ESLint rules
+- Simplify header (no nav tabs / profile) and layout (no account fetch)
+- Reorder dashboard: chart on top, calculator and coupon side by side
+- Show an empty division coupon before the first calculation
+- Rewrite CLAUDE.md to describe the current single-feature app
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 git push origin main
 ```
@@ -28,58 +37,100 @@ git push origin main
 ## Opção 2 — Commits separados (histórico mais limpo)
 
 ```bash
-# 1. Helpers de data (base para os demais commits)
-git add lib/date.ts
-git commit -m "feat(lib): add timezone-safe helpers for date-only columns"
+# 1. Remover a feature de PJ
+git add -A actions/pj.actions.ts \
+           app/_pj/ \
+           app/pj/ \
+           repositories/pj-cycle.repository.ts \
+           repositories/pj-cycle-day.repository.ts \
+           schemas/pj.schema.ts \
+           services/pj.service.ts \
+           services/pj-math.service.ts \
+           types/pj.ts
+git commit -m "refactor(pj): remove freelance cycle tracking feature
 
-# 2. Ajustes no PJ
-git add supabase/migrations/20260709000000_drop_pj_cycle_day_note.sql \
-        repositories/pj-cycle-day.repository.ts \
-        schemas/pj.schema.ts \
-        services/pj-math.service.ts \
-        services/pj.service.ts \
-        types/pj.ts \
-        app/_pj/
-git commit -m "refactor(pj): drop unused day note and use local date parsing"
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
-# 3. Remoção das metas
-git add -u actions/goal.actions.ts \
-           app/_goals/ \
-           app/goals/ \
-           repositories/goal.repository.ts \
-           schemas/goal.schema.ts \
-           services/goal-math.service.ts \
-           services/goal.service.ts \
-           types/goal.ts
-git commit -m "feat(goals): remove savings goals feature"
+# 2. Remover a feature de Investimentos
+git add -A actions/investment.actions.ts \
+           app/_investments/ \
+           app/investments/ \
+           repositories/investment-asset.repository.ts \
+           repositories/investment-income.repository.ts \
+           repositories/investment-settings.repository.ts \
+           repositories/investment-snapshot.repository.ts \
+           schemas/investment.schema.ts \
+           services/investment.service.ts \
+           services/investment-math.service.ts \
+           services/investment-view.service.ts \
+           types/investment.ts \
+           lib/date.ts
+git commit -m "refactor(investments): remove portfolio tracking feature
 
-# 4. Investimentos
-git add supabase/migrations/20260710000000_replace_goals_with_investments.sql \
-        actions/investment.actions.ts \
-        app/_investments/ \
-        app/investments/ \
-        repositories/investment-*.repository.ts \
-        schemas/investment.schema.ts \
-        services/investment*.service.ts \
-        types/investment.ts
-git commit -m "feat(investments): add portfolio tracking with assets, allocation and returns"
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
-# 5. Restante (UI, docs, navegação)
-git add -A
-git commit -m "chore: update navigation, shared UI and project docs"
+# 3. Remover Supabase, auth, conta e todo o pipeline de servidor
+git add -A actions/auth.actions.ts \
+           actions/account.actions.ts \
+           app/_auth/ \
+           app/login/ \
+           app/auth/ \
+           app/_profile/ \
+           app/profile/ \
+           repositories/auth.repository.ts \
+           repositories/account.repository.ts \
+           schemas/auth.schema.ts \
+           schemas/account.schema.ts \
+           services/auth.service.ts \
+           services/account.service.ts \
+           types/account.ts \
+           lib/supabase/ \
+           proxy.ts \
+           supabase/ \
+           app/layout.tsx \
+           components/layout/header.tsx \
+           eslint.config.mjs \
+           package.json \
+           package-lock.json
+git commit -m "refactor(auth): drop Supabase auth/account and make app localStorage-only
+
+App is now single-user and client-side: no login, no server pipeline, no
+route middleware. Removes the Supabase SSR clients and dependencies, the
+Supabase-specific ESLint rules, and the account fetch / nav tabs from the shell.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+
+# 4. Reorganizar o Dashboard e mostrar o cupom vazio
+git add -A app/page.tsx \
+           app/_dashboard/calculator-section.tsx \
+           app/_dashboard/calculator-result-panel.tsx
+git commit -m "feat(dashboard): stack chart with side-by-side calculator and coupon
+
+Chart spans the full width on top; the calculator and the division coupon sit
+side by side below it. The coupon now renders an empty state (dashes, no stamp)
+before the first calculation.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+
+# 5. Atualizar a documentação
+git add -A CLAUDE.md COMMIT.md
+git commit -m "docs: rewrite CLAUDE.md for the single-feature localStorage app
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 git push origin main
 ```
 
 ---
 
-## Antes de subir
+## Observação — pasta `.claude/`
+
+O `git status` também mostra mudanças em `.claude/` (regras antigas em `.claude/rules/*.md`
+apagadas e uma pasta `.claude/` nova sem rastrear) que **são anteriores e não fazem parte desta
+alteração**. Trate-as num commit próprio, se quiser versioná-las:
 
 ```bash
-npm run lint     # checar ESLint
-npm run build    # garantir que o build passa
-git status       # conferir o que vai no commit
+git add -A .claude/
+git commit -m "chore: reorganize .claude rules"
 ```
-
-> Lembre-se de rodar as migrations em `supabase/migrations/` no SQL editor do Supabase
-> (na ordem do nome do arquivo) antes de testar a feature de investimentos.
+</content>

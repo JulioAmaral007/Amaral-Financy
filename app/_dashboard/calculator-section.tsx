@@ -9,7 +9,7 @@ export function CalculatorSection() {
   const [payload, setPayload] = useState<CalculatorResultPayload | null>(null);
 
   return (
-    <section className="flex flex-col gap-8 lg:sticky lg:top-24">
+    <section className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start">
       <CalculatorForm onResult={setPayload} />
       <CalculatorResultPanel payload={payload} />
     </section>

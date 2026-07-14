@@ -3,7 +3,6 @@ import { Courier_Prime, Special_Elite } from "next/font/google";
 
 import { Toaster } from "@/components/feedback/toaster";
 import { Header } from "@/components/layout/header";
-import * as accountService from "@/services/account.service";
 import "./globals.css";
 
 const courierPrime = Courier_Prime({
@@ -27,7 +26,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Rumo",
-  description: "Divida contas, acompanhe sua carteira de investimentos e controle seu recebimento PJ em um só lugar.",
+  description: "Divida contas e acompanhe seus gastos fixos e avulsos ao longo do ano.",
   icons: {
     icon: [
       { url: "/assets/favicon-32.png", sizes: "32x32", type: "image/png" },
@@ -38,18 +37,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const account = await accountService.getAccountProfile();
-
   return (
     <html lang="pt-BR" className={`${courierPrime.variable} ${specialElite.variable}`}>
       <body className="antialiased">
         <div className="min-h-screen overflow-x-clip">
-          <Header account={account} />
+          <Header />
           <div className="mx-auto max-w-[1080px] overflow-x-clip px-4 py-8 sm:px-8 sm:py-12">{children}</div>
         </div>
         <Toaster />
