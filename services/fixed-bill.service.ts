@@ -1,6 +1,6 @@
 import * as fixedBillRepository from "@/repositories/fixed-bill.repository";
 import type { CreateFixedBillInput } from "@/schemas/fixed-bill.schema";
-import type { FixedBill, FixedBillPayer, FixedBillStatus } from "@/types/fixed-bill";
+import type { FixedBill, FixedBillPayer } from "@/types/fixed-bill";
 import type { PaginatedResult } from "@/types/pagination";
 
 export const FIXED_BILLS_PAGE_SIZE = 10;
@@ -13,42 +13,23 @@ export const PAYER_LABELS: Record<FixedBillPayer, string> = {
 };
 
 export interface FixedBillView extends FixedBill {
-  status: FixedBillStatus;
-  showAlert: boolean;
-  alertText: string;
   payerLabel: string;
 }
 
-export function getFixedBillStatus(dueDay: number, todayOfMonth: number): FixedBillStatus {
-  const diff = dueDay - todayOfMonth;
-  if (diff < 0) return "overdue";
-  if (diff <= 5) return "upcoming";
-  return "ok";
-}
-
-export function decorateFixedBills(bills: FixedBill[], today: Date = new Date()): FixedBillView[] {
-  const todayOfMonth = today.getDate();
-
-  return bills.map((bill) => {
-    const diff = bill.dueDay - todayOfMonth;
-    const status = getFixedBillStatus(bill.dueDay, todayOfMonth);
-    const showAlert = !bill.isPaid && status !== "ok";
-
-    let alertText = "";
-    if (status === "overdue") {
-      alertText = `${bill.name} está atrasada (venceu dia ${bill.dueDay})`;
-    } else if (status === "upcoming") {
-      alertText = `${bill.name} vence ${
-        diff === 0 ? "hoje" : `em ${diff} dia${diff > 1 ? "s" : ""}`
-      } (dia ${bill.dueDay})`;
-    }
-
-    return { ...bill, status, showAlert, alertText, payerLabel: PAYER_LABELS[bill.payer] };
-  });
+export function decorateFixedBills(bills: FixedBill[]): FixedBillView[] {
+  return bills.map((bill) => ({ ...bill, payerLabel: PAYER_LABELS[bill.payer] }));
 }
 
 /**
- * Todas as contas fixas, sem paginação — usado para totais/alertas e para
+ * Soma das contas fixas marcadas para entrar no valor da conta da
+ * calculadora — usada para preencher/atualizar o campo "Valor da conta".
+ */
+export function sumIncludedFixedBills(bills: FixedBill[]): number {
+  return bills.filter((bill) => bill.includedInBill).reduce((sum, bill) => sum + bill.amount, 0);
+}
+
+/**
+ * Todas as contas fixas, sem paginação — usado para totais e para
  * a agregação por mês do Histórico, que precisam do conjunto completo.
  */
 export async function getAllFixedBills(): Promise<FixedBill[]> {
@@ -78,8 +59,8 @@ export async function createFixedBill(input: CreateFixedBillInput): Promise<Fixe
   return fixedBillRepository.createFixedBill(input);
 }
 
-export async function toggleFixedBillPaid(id: string, isPaid: boolean): Promise<FixedBill> {
-  return fixedBillRepository.toggleFixedBillPaid(id, isPaid);
+export async function toggleFixedBillIncluded(id: string, includedInBill: boolean): Promise<FixedBill> {
+  return fixedBillRepository.toggleFixedBillIncluded(id, includedInBill);
 }
 
 export async function deleteFixedBill(id: string): Promise<void> {

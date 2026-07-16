@@ -20,8 +20,8 @@ export async function createFixedBillAction(input: CreateFixedBillInput): Promis
   return {};
 }
 
-export async function toggleFixedBillPaidAction(id: string, isPaid: boolean): Promise<void> {
-  await fixedBillService.toggleFixedBillPaid(id, isPaid);
+export async function toggleFixedBillIncludedAction(id: string, includedInBill: boolean): Promise<void> {
+  await fixedBillService.toggleFixedBillIncluded(id, includedInBill);
 }
 
 export async function deleteFixedBillAction(id: string): Promise<void> {

@@ -8,16 +8,13 @@ export type FixedBillCategory =
 
 export type FixedBillPayer = "salary1" | "salary2" | "salary3" | "split";
 
-export type FixedBillStatus = "overdue" | "upcoming" | "ok";
-
 export interface FixedBill {
   id: string;
   name: string;
   amount: number;
   category: FixedBillCategory;
   payer: FixedBillPayer;
-  dueDay: number;
-  isPaid: boolean;
+  includedInBill: boolean;
   createdAt: string;
   updatedAt: string;
 }

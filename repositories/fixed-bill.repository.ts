@@ -21,21 +21,19 @@ function stripDeleted(bill: StoredFixedBill): FixedBill {
     amount: bill.amount,
     category: bill.category,
     payer: bill.payer,
-    dueDay: bill.dueDay,
-    isPaid: bill.isPaid,
+    includedInBill: bill.includedInBill,
     createdAt: bill.createdAt,
     updatedAt: bill.updatedAt,
   };
 }
 
 /**
- * Todas as contas fixas, sem paginação — usado para totais/alertas e para
+ * Todas as contas fixas, sem paginação — usado para totais/soma na calculadora e para
  * a agregação por mês do Histórico, que precisam do conjunto completo.
  */
 export async function listAllFixedBills(): Promise<FixedBill[]> {
   return readAll()
     .filter((bill) => !bill.deletedAt)
-    .sort((a, b) => a.dueDay - b.dueDay)
     .map(stripDeleted);
 }
 
@@ -55,7 +53,6 @@ export async function createFixedBill(input: {
   amount: number;
   category: FixedBillCategory;
   payer: FixedBillPayer;
-  dueDay: number;
 }): Promise<FixedBill> {
   const now = new Date().toISOString();
   const bill: StoredFixedBill = {
@@ -64,8 +61,7 @@ export async function createFixedBill(input: {
     amount: input.amount,
     category: input.category,
     payer: input.payer,
-    dueDay: input.dueDay,
-    isPaid: false,
+    includedInBill: false,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -75,12 +71,12 @@ export async function createFixedBill(input: {
   return stripDeleted(bill);
 }
 
-export async function toggleFixedBillPaid(id: string, isPaid: boolean): Promise<FixedBill> {
+export async function toggleFixedBillIncluded(id: string, includedInBill: boolean): Promise<FixedBill> {
   const all = readAll();
   const index = all.findIndex((bill) => bill.id === id && !bill.deletedAt);
   if (index === -1) throw new Error("Conta fixa não encontrada");
 
-  all[index] = { ...all[index], isPaid, updatedAt: new Date().toISOString() };
+  all[index] = { ...all[index], includedInBill, updatedAt: new Date().toISOString() };
   writeAll(all);
   return stripDeleted(all[index]);
 }
