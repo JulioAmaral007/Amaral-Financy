@@ -34,7 +34,6 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
       amount: "",
       category: fixedBillCategories[0],
       payer: "split",
-      dueDay: "",
     },
   });
 
@@ -46,7 +45,6 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
         amount: parseCurrencyInput(data.amount),
         category: data.category,
         payer: data.payer,
-        dueDay: Number(data.dueDay),
       });
       if (result.error) {
         setError(result.error);
@@ -61,7 +59,7 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
       onSubmit={handleSubmit(onSubmit)}
       className="mb-4 flex flex-col gap-3 border-[1.5px] border-rule-faint bg-paper-dim p-[18px]"
     >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <FormField label="Nome da conta" htmlFor="bill-name" error={formState.errors.name?.message}>
           <Input id="bill-name" {...register("name")} />
         </FormField>
@@ -73,11 +71,6 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
               <CurrencyInput id="bill-amount" value={field.value} onValueChange={field.onChange} />
             )}
           />
-        </FormField>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <FormField label="Dia venc." htmlFor="bill-due-day" error={formState.errors.dueDay?.message}>
-          <Input id="bill-due-day" inputMode="numeric" {...register("dueDay")} />
         </FormField>
         <FormField label="Categoria" htmlFor="bill-category">
           <Select id="bill-category" {...register("category")}>

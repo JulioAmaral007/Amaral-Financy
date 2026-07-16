@@ -4,9 +4,9 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 
 import { ToggleCheck } from "@/components/ui/toggle-check";
-import { deleteFixedBillAction, toggleFixedBillPaidAction } from "@/actions/fixed-bill.actions";
-import { cn, formatCurrencyBRL } from "@/lib/utils";
-import type { FixedBillStatus } from "@/types/fixed-bill";
+import { deleteFixedBillAction, toggleFixedBillIncludedAction } from "@/actions/fixed-bill.actions";
+import { emitFixedBillsUpdated } from "@/lib/fixed-bill-events";
+import { formatCurrencyBRL } from "@/lib/utils";
 import type { FixedBillView } from "@/services/fixed-bill.service";
 
 interface FixedBillRowProps {
@@ -14,30 +14,14 @@ interface FixedBillRowProps {
   onChanged: () => void;
 }
 
-const STATUS_STAMP: Record<FixedBillStatus, string> = {
-  overdue: "-rotate-3 rounded-[4px] border-2 border-red px-2 py-0.5 text-red opacity-85",
-  upcoming: "-rotate-3 rounded-[4px] border-2 border-ink-soft px-2 py-0.5 text-ink-soft opacity-85",
-  ok: "text-ink-faint",
-};
-
-const STATUS_LABEL: Record<FixedBillStatus, string> = {
-  overdue: "Atrasada",
-  upcoming: "Vence logo",
-  ok: "pendente",
-};
-
 export function FixedBillRow({ bill, onChanged }: FixedBillRowProps) {
   const [isPending, startTransition] = useTransition();
 
-  const stampClass = bill.isPaid
-    ? "-rotate-3 rounded-[4px] border-2 border-red px-2 py-0.5 text-red opacity-85"
-    : STATUS_STAMP[bill.status];
-  const statusLabel = bill.isPaid ? "Pago" : STATUS_LABEL[bill.status];
-
-  function handleTogglePaid() {
+  function handleToggleIncluded() {
     startTransition(async () => {
       try {
-        await toggleFixedBillPaidAction(bill.id, !bill.isPaid);
+        await toggleFixedBillIncludedAction(bill.id, !bill.includedInBill);
+        emitFixedBillsUpdated();
         onChanged();
       } catch {
         toast.error("Erro ao atualizar a conta. Tente novamente.");
@@ -49,6 +33,7 @@ export function FixedBillRow({ bill, onChanged }: FixedBillRowProps) {
     startTransition(async () => {
       try {
         await deleteFixedBillAction(bill.id);
+        emitFixedBillsUpdated();
         onChanged();
       } catch {
         toast.error("Erro ao remover a conta. Tente novamente.");
@@ -57,32 +42,24 @@ export function FixedBillRow({ bill, onChanged }: FixedBillRowProps) {
   }
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-3.5 border-b border-dashed border-rule-faint px-1 py-3",
-        !bill.isPaid && bill.status === "overdue" && "bg-red-soft"
-      )}
-    >
+    <div className="flex items-center gap-3.5 border-b border-dashed border-rule-faint px-1 py-3">
       <ToggleCheck
-        checked={bill.isPaid}
-        onClick={handleTogglePaid}
+        checked={bill.includedInBill}
+        onClick={handleToggleIncluded}
         disabled={isPending}
-        aria-label={`Marcar ${bill.name} como pago`}
+        aria-label={`Somar ${bill.name} ao valor da conta`}
       />
       <div className="min-w-0 flex-1">
         <p className="text-[14.5px] font-bold text-ink">{bill.name}</p>
         <p className="text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
-          {bill.category} · todo dia {bill.dueDay} · {bill.payerLabel}
+          {bill.category} · {bill.payerLabel}
         </p>
       </div>
-      <span
-        className={cn(
-          "inline-block whitespace-nowrap text-[10.5px] font-bold uppercase tracking-[0.12em]",
-          stampClass
-        )}
-      >
-        {statusLabel}
-      </span>
+      {bill.includedInBill && (
+        <span className="inline-block whitespace-nowrap text-[10.5px] font-bold uppercase tracking-[0.12em] text-ink-faint">
+          Somado
+        </span>
+      )}
       <div className="w-[110px] flex-none text-right text-[14.5px] font-bold text-ink">
         {formatCurrencyBRL(bill.amount)}
       </div>

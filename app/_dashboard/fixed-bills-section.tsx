@@ -10,7 +10,6 @@ import { FixedBillsView } from "./fixed-bills-view";
 
 interface FixedBillsData {
   bills: FixedBillView[];
-  alerts: FixedBillView[];
   total: number;
   page: number;
   totalPages: number;
@@ -29,13 +28,10 @@ export function FixedBillsSection() {
       ([allBills, pageResult]) => {
         if (cancelled) return;
 
-        const decoratedAll = fixedBillService.decorateFixedBills(allBills);
-        const alerts = decoratedAll.filter((bill) => bill.showAlert);
         const total = allBills.reduce((sum, bill) => sum + bill.amount, 0);
 
         setData({
           bills: pageResult.items,
-          alerts,
           total,
           page: pageResult.page,
           totalPages: pageResult.totalPages,
@@ -53,7 +49,6 @@ export function FixedBillsSection() {
   return (
     <FixedBillsView
       bills={data.bills}
-      alerts={data.alerts}
       total={data.total}
       page={data.page}
       totalPages={data.totalPages}

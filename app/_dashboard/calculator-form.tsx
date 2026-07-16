@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { ReceiptTitle, StarDivider } from "@/components/ui/receipt";
+import { onFixedBillsUpdated } from "@/lib/fixed-bill-events";
 import { emitHistoryUpdated } from "@/lib/history-events";
 import { formatCurrencyBRL, parseCurrencyInput } from "@/lib/utils";
 import { calculateFormSchema, type CalculateFormValues } from "@/schemas/calculate.schema";
+import * as fixedBillService from "@/services/fixed-bill.service";
 import * as profileService from "@/services/profile.service";
 import type { SalarySplitResult } from "@/types/bill-split";
 
@@ -32,21 +34,33 @@ export function CalculatorForm({ onResult }: CalculatorFormProps) {
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
 
-  const { handleSubmit, control, reset } = useForm<CalculateFormValues>({
+  const { handleSubmit, control, reset, setValue } = useForm<CalculateFormValues>({
     resolver: zodResolver(calculateFormSchema),
     defaultValues: { salary1: "", salary2: "", salary3: "", billAmount: "" },
   });
 
   useEffect(() => {
-    profileService.getProfile().then((profile) => {
-      reset({
-        salary1: profile.salary1 ? String(Math.round(profile.salary1 * 100)) : "",
-        salary2: profile.salary2 ? String(Math.round(profile.salary2 * 100)) : "",
-        salary3: profile.salary3 ? String(Math.round(profile.salary3 * 100)) : "",
-        billAmount: "",
+    Promise.all([profileService.getProfile(), fixedBillService.getAllFixedBills()]).then(
+      ([profile, fixedBills]) => {
+        const includedTotal = fixedBillService.sumIncludedFixedBills(fixedBills);
+        reset({
+          salary1: profile.salary1 ? String(Math.round(profile.salary1 * 100)) : "",
+          salary2: profile.salary2 ? String(Math.round(profile.salary2 * 100)) : "",
+          salary3: profile.salary3 ? String(Math.round(profile.salary3 * 100)) : "",
+          billAmount: includedTotal ? String(Math.round(includedTotal * 100)) : "",
+        });
+      }
+    );
+  }, [reset]);
+
+  useEffect(() => {
+    return onFixedBillsUpdated(() => {
+      fixedBillService.getAllFixedBills().then((fixedBills) => {
+        const includedTotal = fixedBillService.sumIncludedFixedBills(fixedBills);
+        setValue("billAmount", includedTotal ? String(Math.round(includedTotal * 100)) : "");
       });
     });
-  }, [reset]);
+  }, [setValue]);
 
   const values = useWatch({ control });
   const sumSalaries =
