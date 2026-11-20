@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { emitFixedBillsUpdated } from "@/lib/fixed-bill-events";
 import { parseCurrencyInput } from "@/lib/utils";
 import {
   createFixedBillFormSchema,
@@ -19,11 +20,12 @@ import {
 } from "@/schemas/fixed-bill.schema";
 
 interface AddFixedBillFormProps {
+  month: string;
   onDone: () => void;
   onCancel: () => void;
 }
 
-export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
+export function AddFixedBillForm({ month, onDone, onCancel }: AddFixedBillFormProps) {
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
 
@@ -41,6 +43,7 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
     setError(undefined);
     startTransition(async () => {
       const result = await createFixedBillAction({
+        month,
         name: data.name,
         amount: parseCurrencyInput(data.amount),
         category: data.category,
@@ -49,6 +52,7 @@ export function AddFixedBillForm({ onDone, onCancel }: AddFixedBillFormProps) {
       if (result.error) {
         setError(result.error);
       } else {
+        emitFixedBillsUpdated();
         onDone();
       }
     });

@@ -1,58 +1,45 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
+import { shiftMonth } from "@/lib/month";
 import * as fixedBillService from "@/services/fixed-bill.service";
 import type { FixedBillView } from "@/services/fixed-bill.service";
 
 import { FixedBillsView } from "./fixed-bills-view";
+import { useDataReloadKey } from "./use-data-reload-key";
+import { useSelectedMonth } from "./use-selected-month";
 
 interface FixedBillsData {
+  month: string;
   bills: FixedBillView[];
-  total: number;
-  page: number;
-  totalPages: number;
+  previousMonthBillCount: number;
 }
 
 export function FixedBillsSection() {
-  const searchParams = useSearchParams();
-  const page = Math.max(1, Number(searchParams.get("fixedBillsPage")) || 1);
+  const [month] = useSelectedMonth();
+  const reloadKey = useDataReloadKey();
   const [data, setData] = useState<FixedBillsData | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([fixedBillService.getAllFixedBills(), fixedBillService.getFixedBillsPage(page)]).then(
-      ([allBills, pageResult]) => {
-        if (cancelled) return;
-
-        const total = allBills.reduce((sum, bill) => sum + bill.amount, 0);
-
-        setData({
-          bills: pageResult.items,
-          total,
-          page: pageResult.page,
-          totalPages: pageResult.totalPages,
-        });
-      }
-    );
+    Promise.all([
+      fixedBillService.getFixedBillsForMonth(month),
+      fixedBillService.getFixedBillsForMonth(shiftMonth(month, -1)),
+    ]).then(([bills, previousBills]) => {
+      if (cancelled) return;
+      setData({ month, bills, previousMonthBillCount: previousBills.length });
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [page, reloadKey]);
+  }, [month, reloadKey]);
 
-  if (!data) return null;
+  if (!data || data.month !== month) return null;
 
   return (
-    <FixedBillsView
-      bills={data.bills}
-      total={data.total}
-      page={data.page}
-      totalPages={data.totalPages}
-      onChanged={() => setReloadKey((key) => key + 1)}
-    />
+    <FixedBillsView month={month} bills={data.bills} previousMonthBillCount={data.previousMonthBillCount} />
   );
 }
