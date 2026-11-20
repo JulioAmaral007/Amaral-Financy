@@ -1,34 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { Card } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
 import { ReceiptTitle, SectionLabel, StarDivider } from "@/components/ui/receipt";
-import { cn } from "@/lib/utils";
-import { onHistoryUpdated } from "@/lib/history-events";
+import { MONTH_NAMES, makeMonthKey, parseMonthKey, shiftMonth } from "@/lib/month";
+import { cn, formatCurrencyBRL } from "@/lib/utils";
 import * as billSplitChartService from "@/services/bill-split-chart.service";
-import * as billSplitService from "@/services/bill-split.service";
-import * as fixedBillService from "@/services/fixed-bill.service";
 import * as historyService from "@/services/history.service";
-import * as profileService from "@/services/profile.service";
+import * as monthService from "@/services/month.service";
 import type { ChartPoint, ChartYAxisTick } from "@/types/bill-split";
-import type { FixedBill } from "@/types/fixed-bill";
 import type { HistoryEntry } from "@/types/history";
 
 import { HistoryChart } from "./history-chart";
 import { HistoryList } from "./history-list";
-import { PersonTotals } from "./person-totals";
+import { useDataReloadKey } from "./use-data-reload-key";
+import { useSelectedMonth } from "./use-selected-month";
 
 interface HistoryData {
+  month: string;
   chartPoints: ChartPoint[];
   chartYAxisTicks: ChartYAxisTick[];
   delta: { label: string; positive: boolean } | null;
-  historyForYear: HistoryEntry[];
-  fixedBills: FixedBill[];
-  salaries: { salary1: number; salary2: number; salary3: number };
-  currentMonthIndex: number;
+  monthTotal: number;
   historyItems: HistoryEntry[];
   page: number;
   totalPages: number;
@@ -37,75 +33,53 @@ interface HistoryData {
 export function HistorySection() {
   const searchParams = useSearchParams();
   const page = Math.max(1, Number(searchParams.get("historyPage")) || 1);
+  const [month, setMonth] = useSelectedMonth();
+  const reloadKey = useDataReloadKey();
   const [data, setData] = useState<HistoryData | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([
-      profileService.getProfile(),
-      fixedBillService.getAllFixedBills(),
-      historyService.getHistoryForCurrentYear(),
-      historyService.getHistoryPage(page),
-    ]).then(([profile, fixedBills, historyForYear, historyPage]) => {
-      if (cancelled) return;
+    Promise.all([monthService.getTotalsByMonth(), historyService.getHistoryPage(month, page)]).then(
+      ([totalsByMonth, historyPage]) => {
+        if (cancelled) return;
 
-      const fixedBillsTotal = fixedBills.reduce((sum, bill) => sum + bill.amount, 0);
-      const monthlyTotals = billSplitChartService.getYearlyMonthlyTotals(historyForYear, fixedBillsTotal);
-      const chartPoints = billSplitChartService.getChartPoints(monthlyTotals);
-      const chartYAxisTicks = billSplitChartService.getChartYAxisTicks(monthlyTotals);
-      const delta = billSplitChartService.getMonthDelta(monthlyTotals);
+        const { year, monthIndex } = parseMonthKey(month);
+        const today = new Date();
+        const currentMonthIndex = today.getFullYear() === year ? today.getMonth() : null;
 
-      setData({
-        chartPoints,
-        chartYAxisTicks,
-        delta,
-        historyForYear,
-        fixedBills,
-        salaries: { salary1: profile.salary1, salary2: profile.salary2, salary3: profile.salary3 },
-        currentMonthIndex: new Date().getMonth(),
-        historyItems: historyPage.items,
-        page: historyPage.page,
-        totalPages: historyPage.totalPages,
-      });
-    });
+        const monthlyTotals = billSplitChartService.getYearlyMonthlyTotals(totalsByMonth, year);
+        const monthTotal = monthlyTotals[monthIndex].total;
+
+        setData({
+          month,
+          chartPoints: billSplitChartService.getChartPoints(monthlyTotals, currentMonthIndex),
+          chartYAxisTicks: billSplitChartService.getChartYAxisTicks(monthlyTotals),
+          delta: billSplitChartService.getMonthDelta(monthTotal, totalsByMonth[shiftMonth(month, -1)] ?? 0),
+          monthTotal,
+          historyItems: historyPage.items,
+          page: historyPage.page,
+          totalPages: historyPage.totalPages,
+        });
+      }
+    );
 
     return () => {
       cancelled = true;
     };
-  }, [page, reloadKey]);
+  }, [month, page, reloadKey]);
 
-  useEffect(() => onHistoryUpdated(() => setReloadKey((key) => key + 1)), []);
+  if (!data || data.month !== month) return null;
 
-  const activeMonth = selectedMonth ?? data?.currentMonthIndex ?? 0;
-
-  const personTotals = useMemo(() => {
-    if (!data) return null;
-
-    const isCurrentMonth = activeMonth === data.currentMonthIndex;
-    const referenceDate = new Date(new Date().getFullYear(), activeMonth, 1);
-    const historyForMonth = billSplitService.filterHistoryForMonth(data.historyForYear, referenceDate);
-
-    return billSplitService.getPersonTotalsForMonth(
-      isCurrentMonth ? data.fixedBills : [],
-      historyForMonth,
-      data.salaries
-    );
-  }, [data, activeMonth]);
-
-  if (!data || !personTotals) return null;
-
-  const activeMonthLabel = data.chartPoints.find((point) => point.month === activeMonth)?.label ?? "";
+  const { year, monthIndex } = parseMonthKey(month);
 
   return (
     <Card className="-rotate-[0.3deg]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <ReceiptTitle className="text-[21px] tracking-[0.08em] sm:text-[27px]">GASTOS NO ANO</ReceiptTitle>
+          <ReceiptTitle className="text-[21px] tracking-[0.08em] sm:text-[27px]">GASTOS EM {year}</ReceiptTitle>
           <p className="mt-0.5 text-[12px] uppercase tracking-[0.14em] text-ink-faint">
-            contas fixas + avulsas por mês
+            contas somadas + cartão, por mês
           </p>
         </div>
         {data.delta && (
@@ -125,20 +99,17 @@ export function HistorySection() {
       <HistoryChart
         points={data.chartPoints}
         yAxisTicks={data.chartYAxisTicks}
-        selectedMonth={activeMonth}
-        onSelectMonth={setSelectedMonth}
+        selectedMonth={monthIndex}
+        onSelectMonth={(selected) => setMonth(makeMonthKey(year, selected))}
       />
 
-      <div className="mt-4 border-t-2 border-dashed border-rule-faint pt-4">
-        <SectionLabel className="mb-2.5">
-          Quanto cada salário pagou em {activeMonthLabel}
-        </SectionLabel>
-        <PersonTotals totals={personTotals} />
-      </div>
+      <p className="mt-2 text-center text-[12px] uppercase tracking-[0.14em] text-ink-faint">
+        total de {MONTH_NAMES[monthIndex]}: <span className="font-bold text-ink">{formatCurrencyBRL(data.monthTotal)}</span>
+      </p>
 
       <div className="mt-4 border-t-2 border-dashed border-rule-faint pt-4">
-        <SectionLabel className="mb-1.5">Histórico de cálculos</SectionLabel>
-        <HistoryList entries={data.historyItems} onChanged={() => setReloadKey((key) => key + 1)} />
+        <SectionLabel className="mb-1.5">Divisões registradas em {MONTH_NAMES[monthIndex]}</SectionLabel>
+        <HistoryList entries={data.historyItems} />
         <Pagination page={data.page} totalPages={data.totalPages} paramName="historyPage" />
       </div>
     </Card>

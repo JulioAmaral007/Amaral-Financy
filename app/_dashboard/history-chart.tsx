@@ -9,7 +9,16 @@ interface HistoryChartProps {
 }
 
 export function HistoryChart({ points, yAxisTicks, selectedMonth, onSelectMonth }: HistoryChartProps) {
-  const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
+
+  // Só liga meses seguidos que têm lançamentos: meses vazios não derrubam a linha até zero.
+  const segments: ChartPoint[][] = [];
+  for (const point of points) {
+    if (point.total > 0) {
+      const last = segments[segments.length - 1];
+      if (last && last[last.length - 1].month === point.month - 1) last.push(point);
+      else segments.push([point]);
+    }
+  }
 
   return (
     <svg
@@ -34,7 +43,17 @@ export function HistoryChart({ points, yAxisTicks, selectedMonth, onSelectMonth 
           </text>
         </g>
       ))}
-      <polyline points={linePoints} fill="none" stroke="var(--ink)" strokeWidth={2} />
+      {segments
+        .filter((segment) => segment.length > 1)
+        .map((segment) => (
+          <polyline
+            key={segment[0].month}
+            points={segment.map((point) => `${point.x},${point.y}`).join(" ")}
+            fill="none"
+            stroke="var(--ink)"
+            strokeWidth={2}
+          />
+        ))}
       {points.map((point) => {
         const isSelected = point.month === selectedMonth;
         return (
@@ -42,7 +61,7 @@ export function HistoryChart({ points, yAxisTicks, selectedMonth, onSelectMonth 
             key={point.month}
             role="button"
             tabIndex={0}
-            aria-label={`Ver quanto cada salário pagou em ${point.label}`}
+            aria-label={`Ver ${point.label}`}
             aria-pressed={isSelected}
             className="cursor-pointer outline-none"
             onClick={() => onSelectMonth(point.month)}
@@ -65,7 +84,14 @@ export function HistoryChart({ points, yAxisTicks, selectedMonth, onSelectMonth 
                 strokeDasharray="3 2"
               />
             )}
-            <circle cx={point.x} cy={point.y} r={point.isCurrent ? 4 : 3.5} fill="var(--ink)" />
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={point.isCurrent ? 4 : 3.5}
+              fill={point.total > 0 ? "var(--ink)" : "var(--paper)"}
+              stroke={point.total > 0 ? "none" : "var(--ink-faint)"}
+              strokeWidth={1.5}
+            />
             <text
               x={point.x}
               y={190}

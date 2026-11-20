@@ -2,7 +2,8 @@
 
 import { Card } from "@/components/ui/card";
 import { ReceiptTitle } from "@/components/ui/receipt";
-import { cn, formatCurrencyBRL } from "@/lib/utils";
+import { PERSON_LABELS, SALARY1_FULL_LABEL } from "@/lib/people";
+import { cn, formatCurrencyBRL, round2 } from "@/lib/utils";
 
 import type { CalculatorResultPayload } from "./calculator-form";
 
@@ -40,21 +41,21 @@ export function CalculatorResultPanel({ payload }: CalculatorResultPanelProps) {
       </div>
 
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-dashed border-rule-faint py-2.5 text-[14px] sm:flex-nowrap sm:text-[15px]">
-        <span className="font-bold text-ink">SALÁRIO 1</span>
+        <span className="font-bold uppercase text-ink">{SALARY1_FULL_LABEL}</span>
         <span className="leader hidden sm:block" />
         <span className={cn("font-bold", result ? "text-ink" : "text-ink-faint")}>
           {amount(result?.salary1Payment)}
         </span>
       </div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-dashed border-rule-faint py-2.5 text-[14px] sm:flex-nowrap sm:text-[15px]">
-        <span className="font-bold text-blue">SALÁRIO 2</span>
+        <span className="font-bold uppercase text-blue">{PERSON_LABELS.salary2}</span>
         <span className="leader hidden sm:block" />
         <span className={cn("font-bold", result ? "text-blue" : "text-ink-faint")}>
           {amount(result?.salary2Payment)}
         </span>
       </div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 py-2.5 text-[14px] sm:flex-nowrap sm:text-[15px]">
-        <span className="font-bold text-red">SALÁRIO 3</span>
+        <span className="font-bold uppercase text-red">{PERSON_LABELS.salary3}</span>
         <span className="leader hidden sm:block" />
         <span className={cn("font-bold", result ? "text-red" : "text-ink-faint")}>
           {amount(result?.salary3Payment)}
@@ -71,9 +72,15 @@ export function CalculatorResultPanel({ payload }: CalculatorResultPanelProps) {
         {amount(payload?.bill)}
       </div>
 
+      {result && (
+        <p className="mt-2 text-center text-[11.5px] uppercase tracking-[0.12em] text-ink-faint">
+          saldo a dividir: {formatCurrencyBRL(round2((payload?.bill ?? 0) - result.salary1Payment))}
+        </p>
+      )}
+
       {result?.exceeds && (
         <div className="mt-4 border-2 border-dashed border-red px-3 py-2.5 text-[12.5px] text-red">
-          !! A conta excede a soma dos salários em {formatCurrencyBRL(result.shortfall)}.
+          !! O total do mês excede a soma dos salários em {formatCurrencyBRL(result.shortfall)}.
         </div>
       )}
     </Card>
