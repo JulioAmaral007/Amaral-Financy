@@ -2,25 +2,44 @@
 
 import { useEffect, useState } from "react";
 
+import { shiftMonth } from "@/lib/month";
+import * as historyService from "@/services/history.service";
 import * as monthService from "@/services/month.service";
 import type { MonthSnapshot } from "@/services/month.service";
 
-import { CalculatorForm, type CalculatorResultPayload } from "./calculator-form";
-import { CalculatorResultPanel } from "./calculator-result-panel";
+import { CalculatorForm } from "./calculator-form";
+import { MonthSummaryCard } from "./month-summary-card";
 import { useDataReloadKey } from "./use-data-reload-key";
 import { useSelectedMonth } from "./use-selected-month";
 
+interface HeroData {
+  month: string;
+  snapshot: MonthSnapshot;
+  historyCount: number;
+  previousTotal: number;
+}
+
+/** Topo do mês: com a divisão ligada no perfil, a calculadora; sem ela, só o resumo. */
 export function CalculatorSection() {
   const [month] = useSelectedMonth();
   const reloadKey = useDataReloadKey();
-  const [snapshot, setSnapshot] = useState<MonthSnapshot | null>(null);
-  const [payload, setPayload] = useState<CalculatorResultPayload | null>(null);
+  const [data, setData] = useState<HeroData | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    monthService.getMonthSnapshot(month).then((result) => {
-      if (!cancelled) setSnapshot(result);
+    Promise.all([
+      monthService.getMonthSnapshot(month),
+      historyService.getHistoryPage(month, 1, 1),
+      monthService.getTotalsByMonth(),
+    ]).then(([snapshot, historyPage, totalsByMonth]) => {
+      if (cancelled) return;
+      setData({
+        month,
+        snapshot,
+        historyCount: historyPage.total,
+        previousTotal: totalsByMonth[shiftMonth(month, -1)] ?? 0,
+      });
     });
 
     return () => {
@@ -29,13 +48,19 @@ export function CalculatorSection() {
   }, [month, reloadKey]);
 
   // Não mostra dados de outro mês enquanto o mês escolhido ainda carrega.
-  if (!snapshot || snapshot.month !== month) return null;
+  if (!data || data.month !== month) return null;
+
+  if (!data.snapshot.workspace.splitEnabled) {
+    return <MonthSummaryCard key={month} snapshot={data.snapshot} previousTotal={data.previousTotal} />;
+  }
 
   return (
-    <section className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start">
-      {/* `key` recria o formulário ao trocar de mês, reiniciando os campos com os valores do novo mês. */}
-      <CalculatorForm key={month} snapshot={snapshot} onResult={setPayload} />
-      <CalculatorResultPanel payload={payload} />
-    </section>
+    // `key` recria o formulário ao trocar de mês, reiniciando os campos com os valores do novo mês.
+    <CalculatorForm
+      key={month}
+      snapshot={data.snapshot}
+      historyCount={data.historyCount}
+      previousTotal={data.previousTotal}
+    />
   );
 }

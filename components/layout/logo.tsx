@@ -1,32 +1,16 @@
-import Image from "next/image";
-
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
   className?: string;
-  size?: "xs" | "sm" | "md" | "lg";
 }
 
-const sizes = {
-  xs: 26,
-  sm: 36,
-  md: 48,
-  lg: 56,
-};
-
-/** The Rumo "R" monogram stamp tile (public/assets/rumo-monograma.png). */
-export function Logo({ className, size = "md" }: LogoProps) {
-  const px = sizes[size];
-
+/** Marca do Rumo: as três fatias da divisão empilhadas, nas cores de cada pessoa. */
+export function Logo({ className }: LogoProps) {
   return (
-    <Image
-      src="/assets/rumo-monograma.png"
-      alt="Rumo"
-      width={px}
-      height={px}
-      priority
-      className={cn("-rotate-3 select-none", className)}
-      style={{ width: px, height: px }}
-    />
+    <svg viewBox="0 0 28 28" aria-hidden className={cn("h-7 w-7", className)}>
+      <rect x="0" y="2" width="28" height="7" rx="3.5" fill="var(--pai)" />
+      <rect x="0" y="11" width="18" height="7" rx="3.5" fill="var(--thais)" />
+      <rect x="0" y="20" width="23" height="7" rx="3.5" fill="var(--julio)" />
+    </svg>
   );
 }

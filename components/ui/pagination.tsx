@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -11,13 +12,14 @@ interface PaginationProps {
   paramName?: string;
 }
 
+const linkClass =
+  "flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5";
+
 export function Pagination({ page, totalPages, paramName = "page" }: PaginationProps) {
   const searchParams = useSearchParams();
 
   if (totalPages <= 1) return null;
 
-  const prevPage = Math.max(1, page - 1);
-  const nextPage = Math.min(totalPages, page + 1);
   const isFirst = page <= 1;
   const isLast = page >= totalPages;
 
@@ -28,23 +30,27 @@ export function Pagination({ page, totalPages, paramName = "page" }: PaginationP
   }
 
   return (
-    <div className="mt-4 flex items-center justify-between text-[12px] uppercase tracking-[0.1em] text-ink-faint">
+    <div className="mt-4 flex items-center justify-center gap-3 text-[13px] text-muted">
       <Link
-        href={hrefForPage(prevPage)}
+        href={hrefForPage(Math.max(1, page - 1))}
+        scroll={false}
         aria-disabled={isFirst}
-        className={cn("font-bold transition-colors", isFirst ? "pointer-events-none opacity-40" : "hover:text-ink")}
+        aria-label="Página anterior"
+        className={cn(linkClass, isFirst && "pointer-events-none opacity-30")}
       >
-        &lt;- Anterior
+        <ChevronLeft className="h-4 w-4" />
       </Link>
       <span>
-        Página {page} de {totalPages}
+        {page} de {totalPages}
       </span>
       <Link
-        href={hrefForPage(nextPage)}
+        href={hrefForPage(Math.min(totalPages, page + 1))}
+        scroll={false}
         aria-disabled={isLast}
-        className={cn("font-bold transition-colors", isLast ? "pointer-events-none opacity-40" : "hover:text-ink")}
+        aria-label="Próxima página"
+        className={cn(linkClass, isLast && "pointer-events-none opacity-30")}
       >
-        Próxima -&gt;
+        <ChevronRight className="h-4 w-4" />
       </Link>
     </div>
   );

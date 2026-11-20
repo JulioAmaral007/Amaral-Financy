@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { ToggleCheck } from "@/components/ui/toggle-check";
@@ -11,10 +11,12 @@ import {
   toggleFixedBillIncludedAction,
 } from "@/actions/fixed-bill.actions";
 import { emitFixedBillsUpdated } from "@/lib/fixed-bill-events";
-import { formatCurrencyBRL } from "@/lib/utils";
+import { cn, formatCurrencyBRL } from "@/lib/utils";
 import type { FixedBillView } from "@/services/fixed-bill.service";
 
 import { EditFixedBillForm } from "./edit-fixed-bill-form";
+import { PERSON_COLORS } from "./people-colors";
+import { RowActions } from "./row-actions";
 
 interface FixedBillRowProps {
   bill: FixedBillView;
@@ -30,7 +32,7 @@ export function FixedBillRow({ bill }: FixedBillRowProps) {
         await toggleFixedBillIncludedAction(bill.id, !bill.includedInBill);
         emitFixedBillsUpdated();
       } catch {
-        toast.error("Erro ao atualizar a conta. Tente novamente.");
+        toast.error("Não foi possível atualizar a conta. Tente de novo.");
       }
     });
   }
@@ -49,7 +51,7 @@ export function FixedBillRow({ bill }: FixedBillRowProps) {
           },
         });
       } catch {
-        toast.error("Erro ao remover a conta. Tente novamente.");
+        toast.error("Não foi possível remover a conta. Tente de novo.");
       }
     });
   }
@@ -60,54 +62,47 @@ export function FixedBillRow({ bill }: FixedBillRowProps) {
   }
 
   if (isEditing) {
-    return (
-      <EditFixedBillForm bill={bill} onDone={handleEditDone} onCancel={() => setIsEditing(false)} />
-    );
+    return <EditFixedBillForm bill={bill} onDone={handleEditDone} onCancel={() => setIsEditing(false)} />;
   }
 
   return (
-    <div className="flex items-center gap-3.5 border-b border-dashed border-rule-faint px-1 py-3">
+    <div className="group flex items-center gap-3 border-b border-line/70 py-2 last:border-b-0">
       <ToggleCheck
         checked={bill.includedInBill}
         onClick={handleToggleIncluded}
         disabled={isPending}
         aria-label={`Somar ${bill.name} ao total do mês`}
       />
-      <div className="min-w-0 flex-1">
-        <p className="text-[14.5px] font-bold text-ink">{bill.name}</p>
-        <p className="text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
-          {bill.category}
-          {bill.payer !== "split" && <> · {bill.payerLabel}</>}
-        </p>
-      </div>
-      {!bill.includedInBill && (
-        <span className="inline-block whitespace-nowrap text-[10.5px] font-bold uppercase tracking-[0.12em] text-red">
-          Fora da soma
-        </span>
-      )}
-      <div className="w-[110px] flex-none text-right text-[14.5px] font-bold text-ink">
+      <p
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-1.5 text-[14px] transition-opacity",
+          !bill.includedInBill && "opacity-45"
+        )}
+      >
+        <span className="truncate font-medium text-ink">{bill.name}</span>
+        <span className="hidden flex-none text-[12.5px] text-muted min-[400px]:inline">· {bill.category}</span>
+        {bill.payer !== "split" && (
+          <span className="flex flex-none items-center gap-1 text-[12.5px] text-muted">
+            <span className={cn("h-1.5 w-1.5 rounded-full", PERSON_COLORS[bill.payer].dot)} />
+            {bill.payerLabel}
+          </span>
+        )}
+      </p>
+      <span
+        className={cn(
+          "money flex-none text-[15px] font-bold",
+          bill.includedInBill ? "text-ink" : "text-faint line-through decoration-2"
+        )}
+      >
         {formatCurrencyBRL(bill.amount)}
-      </div>
-      <div className="flex flex-none items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setIsEditing(true)}
-          disabled={isPending}
-          className="px-1 py-1 text-ink-faint transition-colors hover:text-ink disabled:opacity-50"
-          aria-label={`Editar ${bill.name}`}
-        >
-          <Pencil className="h-[15px] w-[15px]" />
-        </button>
-        <button
-          type="button"
-          onClick={handleRemove}
-          disabled={isPending}
-          className="px-1 py-1 text-[17px] leading-none text-ink-faint transition-colors hover:text-ink disabled:opacity-50"
-          aria-label={`Remover ${bill.name}`}
-        >
-          ×
-        </button>
-      </div>
+      </span>
+      <RowActions
+        disabled={isPending}
+        actions={[
+          { icon: Pencil, label: `Editar ${bill.name}`, onClick: () => setIsEditing(true) },
+          { icon: X, label: `Remover ${bill.name}`, onClick: handleRemove },
+        ]}
+      />
     </div>
   );
 }

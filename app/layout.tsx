@@ -1,32 +1,34 @@
 import type { Metadata, Viewport } from "next";
-import { Courier_Prime, Special_Elite } from "next/font/google";
+import { Bricolage_Grotesque, Onest } from "next/font/google";
 
 import { Toaster } from "@/components/feedback/toaster";
 import { Header } from "@/components/layout/header";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
-const courierPrime = Courier_Prime({
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
-  weight: ["400", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-courier-prime",
+  variable: "--font-bricolage",
 });
 
-const specialElite = Special_Elite({
+const onest = Onest({
   subsets: ["latin"],
-  weight: ["400"],
-  variable: "--font-special-elite",
+  variable: "--font-onest",
 });
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f1f2f6" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e1014" },
+  ],
 };
 
 export const metadata: Metadata = {
   title: "Rumo",
-  description: "Divida contas e acompanhe seus gastos fixos e avulsos ao longo do ano.",
+  description: "Quem paga quanto em casa, mês a mês.",
   icons: {
     icon: [
       { url: "/assets/favicon-32.png", sizes: "32x32", type: "image/png" },
@@ -43,11 +45,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${courierPrime.variable} ${specialElite.variable}`}>
+    // `suppressHydrationWarning`: o script abaixo pode pôr `data-theme` no <html> antes de o React hidratar.
+    <html lang="pt-BR" className={`${bricolage.variable} ${onest.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="antialiased">
-        <div className="min-h-screen overflow-x-clip">
+        <div className="mx-auto min-h-screen max-w-[1120px] overflow-x-clip px-4 pb-24 sm:px-8 lg:pb-10">
           <Header />
-          <div className="mx-auto max-w-[1080px] overflow-x-clip px-4 py-8 sm:px-8 sm:py-12">{children}</div>
+          {children}
         </div>
         <Toaster />
       </body>

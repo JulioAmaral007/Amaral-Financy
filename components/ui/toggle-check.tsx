@@ -1,3 +1,5 @@
+import { Check } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 interface ToggleCheckProps {
@@ -7,7 +9,7 @@ interface ToggleCheckProps {
   "aria-label"?: string;
 }
 
-/** Ledger checkbox: a sharp ink square stamped with an "X" when marked. */
+/** Marcador redondo: preenchido quando ligado, com um pequeno "pop" ao marcar. */
 function ToggleCheck({ checked, onClick, disabled, ...props }: ToggleCheckProps) {
   return (
     <button
@@ -16,12 +18,12 @@ function ToggleCheck({ checked, onClick, disabled, ...props }: ToggleCheckProps)
       disabled={disabled}
       aria-pressed={checked}
       className={cn(
-        "flex h-6 w-6 shrink-0 items-center justify-center border-2 border-ink text-[12px] font-bold leading-none text-paper transition-colors disabled:opacity-50",
-        checked ? "bg-ink" : "bg-transparent"
+        "flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors disabled:opacity-50",
+        checked ? "bg-ink text-on-ink" : "bg-surface ring-2 ring-inset ring-line hover:ring-ink/40"
       )}
       {...props}
     >
-      {checked ? "X" : ""}
+      {checked && <Check className="h-4 w-4 animate-pop" strokeWidth={3} />}
     </button>
   );
 }

@@ -9,7 +9,9 @@ interface HistoryListProps {
 export function HistoryList({ entries }: HistoryListProps) {
   if (entries.length === 0) {
     return (
-      <p className="py-6 text-center text-[13px] text-ink-faint">Nenhuma divisão registrada neste mês.</p>
+      <p className="text-[13.5px] text-muted">
+        Nada registrado ainda. Quando os valores estiverem certos, use “Registrar divisão”.
+      </p>
     );
   }
 

@@ -59,25 +59,27 @@ export function AddFixedBillForm({ month, onDone, onCancel }: AddFixedBillFormPr
   }
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="mb-4 flex flex-col gap-3 border-[1.5px] border-rule-faint bg-paper-dim p-[18px]"
-    >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <FormField label="Nome da conta" htmlFor="bill-name" error={formState.errors.name?.message}>
-          <Input id="bill-name" {...register("name")} />
+    <form onSubmit={handleSubmit(onSubmit)} className="mb-4 flex flex-col gap-4 rounded-[22px] bg-sunken p-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <FormField label="Conta" htmlFor="bill-name" error={formState.errors.name?.message}>
+          <Input id="bill-name" placeholder="Ex.: Internet" autoFocus wrapperClassName="bg-surface" {...register("name")} />
         </FormField>
-        <FormField label="Valor (R$)" htmlFor="bill-amount" error={formState.errors.amount?.message}>
+        <FormField label="Valor" htmlFor="bill-amount" error={formState.errors.amount?.message}>
           <Controller
             control={control}
             name="amount"
             render={({ field }) => (
-              <CurrencyInput id="bill-amount" value={field.value} onValueChange={field.onChange} />
+              <CurrencyInput
+                id="bill-amount"
+                value={field.value}
+                onValueChange={field.onChange}
+                wrapperClassName="bg-surface"
+              />
             )}
           />
         </FormField>
         <FormField label="Categoria" htmlFor="bill-category">
-          <Select id="bill-category" {...register("category")}>
+          <Select id="bill-category" className="bg-surface" {...register("category")}>
             {fixedBillCategories.map((category) => (
               <option key={category} value={category}>
                 {category}
@@ -86,13 +88,13 @@ export function AddFixedBillForm({ month, onDone, onCancel }: AddFixedBillFormPr
           </Select>
         </FormField>
       </div>
-      {error && <p className="text-[12.5px] text-red">!! {error}</p>}
-      <div className="flex justify-end gap-2.5">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      {error && <p className="text-[13px] text-bad">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={isPending}>
-          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar Conta"}
+        <Button type="submit" size="sm" disabled={isPending}>
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Adicionar conta"}
         </Button>
       </div>
     </form>

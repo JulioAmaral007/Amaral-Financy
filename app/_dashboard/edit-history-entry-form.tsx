@@ -57,10 +57,10 @@ export function EditHistoryEntryForm({ entry, onDone, onCancel }: EditHistoryEnt
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="mb-1 flex flex-col gap-3 border-[1.5px] border-rule-faint bg-paper-dim p-[18px]"
+      className="my-2 flex flex-col gap-4 rounded-[22px] bg-sunken p-4"
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <FormField label="Valor da conta" htmlFor={`edit-history-bill-${entry.id}`}>
+        <FormField label="Total" htmlFor={`edit-history-bill-${entry.id}`}>
           <Controller
             control={control}
             name="billAmount"
@@ -69,6 +69,7 @@ export function EditHistoryEntryForm({ entry, onDone, onCancel }: EditHistoryEnt
                 id={`edit-history-bill-${entry.id}`}
                 value={field.value}
                 onValueChange={field.onChange}
+                wrapperClassName="bg-surface"
               />
             )}
           />
@@ -82,6 +83,7 @@ export function EditHistoryEntryForm({ entry, onDone, onCancel }: EditHistoryEnt
                 id={`edit-history-s1-${entry.id}`}
                 value={field.value}
                 onValueChange={field.onChange}
+                wrapperClassName="bg-surface"
               />
             )}
           />
@@ -95,6 +97,7 @@ export function EditHistoryEntryForm({ entry, onDone, onCancel }: EditHistoryEnt
                 id={`edit-history-s2-${entry.id}`}
                 value={field.value}
                 onValueChange={field.onChange}
+                wrapperClassName="bg-surface"
               />
             )}
           />
@@ -108,17 +111,18 @@ export function EditHistoryEntryForm({ entry, onDone, onCancel }: EditHistoryEnt
                 id={`edit-history-s3-${entry.id}`}
                 value={field.value}
                 onValueChange={field.onChange}
+                wrapperClassName="bg-surface"
               />
             )}
           />
         </FormField>
       </div>
-      {error && <p className="text-[12.5px] text-red">!! {error}</p>}
-      <div className="flex justify-end gap-2.5">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      {error && <p className="text-[13px] text-bad">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" size="sm" disabled={isPending}>
           {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
         </Button>
       </div>

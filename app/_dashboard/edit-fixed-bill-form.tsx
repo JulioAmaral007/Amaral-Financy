@@ -55,29 +55,27 @@ export function EditFixedBillForm({ bill, onDone, onCancel }: EditFixedBillFormP
   }
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="mb-1 flex flex-col gap-3 border-[1.5px] border-rule-faint bg-paper-dim p-[18px]"
-    >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <FormField label="Nome da conta" htmlFor={`edit-bill-name-${bill.id}`} error={formState.errors.name?.message}>
-          <Input id={`edit-bill-name-${bill.id}`} {...register("name")} />
+    <form onSubmit={handleSubmit(onSubmit)} className="my-2 flex flex-col gap-4 rounded-[22px] bg-sunken p-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <FormField label="Conta" htmlFor={`edit-bill-name-${bill.id}`} error={formState.errors.name?.message}>
+          <Input id={`edit-bill-name-${bill.id}`} wrapperClassName="bg-surface" {...register("name")} />
         </FormField>
-        <FormField
-          label="Valor (R$)"
-          htmlFor={`edit-bill-amount-${bill.id}`}
-          error={formState.errors.amount?.message}
-        >
+        <FormField label="Valor" htmlFor={`edit-bill-amount-${bill.id}`} error={formState.errors.amount?.message}>
           <Controller
             control={control}
             name="amount"
             render={({ field }) => (
-              <CurrencyInput id={`edit-bill-amount-${bill.id}`} value={field.value} onValueChange={field.onChange} />
+              <CurrencyInput
+                id={`edit-bill-amount-${bill.id}`}
+                value={field.value}
+                onValueChange={field.onChange}
+                wrapperClassName="bg-surface"
+              />
             )}
           />
         </FormField>
         <FormField label="Categoria" htmlFor={`edit-bill-category-${bill.id}`}>
-          <Select id={`edit-bill-category-${bill.id}`} {...register("category")}>
+          <Select id={`edit-bill-category-${bill.id}`} className="bg-surface" {...register("category")}>
             {fixedBillCategories.map((category) => (
               <option key={category} value={category}>
                 {category}
@@ -86,13 +84,13 @@ export function EditFixedBillForm({ bill, onDone, onCancel }: EditFixedBillFormP
           </Select>
         </FormField>
       </div>
-      {error && <p className="text-[12.5px] text-red">!! {error}</p>}
-      <div className="flex justify-end gap-2.5">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      {error && <p className="text-[13px] text-bad">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={isPending}>
-          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar Alterações"}
+        <Button type="submit" size="sm" disabled={isPending}>
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
         </Button>
       </div>
     </form>

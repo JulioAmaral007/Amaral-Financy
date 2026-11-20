@@ -2,18 +2,41 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-/**
- * PaperCard — a warm receipt sheet with drop shadow and a torn/perforated
- * bottom edge. This is the core surface of the Rumo Recibo design.
- */
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+/** Superfície branca padrão das seções do dashboard. */
+function Card({ className, ...props }: React.ComponentProps<"section">) {
   return (
-    <div
+    <section
       data-slot="card"
-      className={cn("paper-card px-5 pt-7 pb-6 sm:px-9 sm:pt-9 sm:pb-8", className)}
+      className={cn(
+        "scroll-mt-3 rounded-[28px] bg-surface p-5 shadow-card sm:p-6",
+        className
+      )}
       {...props}
     />
   );
 }
 
-export { Card };
+/** Título de seção + linha de apoio opcional, à esquerda; ações à direita. */
+function CardHeader({
+  title,
+  subtitle,
+  children,
+  className,
+}: {
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("mb-4 flex flex-wrap items-start justify-between gap-3", className)}>
+      <div className="min-w-0">
+        <h2 className="font-display text-[20px] font-bold tracking-[-0.02em] text-ink">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}
+      </div>
+      {children && <div className="flex flex-none items-center gap-2">{children}</div>}
+    </div>
+  );
+}
+
+export { Card, CardHeader };
