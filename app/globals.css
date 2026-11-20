@@ -120,6 +120,7 @@
   --shadow-pop: var(--elev-pop);
 
   --animate-pop: pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+  --animate-popover: popover-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
 @layer base {
@@ -180,6 +181,18 @@
   to {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+/* Abertura dos menus suspensos (select, calendário): cresce a partir do campo. */
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--popover-shift, -4px)) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 

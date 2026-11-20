@@ -105,3 +105,27 @@ export function monthDateBounds(key: MonthKey): { min: string; max: string } {
   const lastDay = new Date(year, monthIndex + 1, 0).getDate();
   return { min: `${key}-01`, max: `${key}-${String(lastDay).padStart(2, "0")}` };
 }
+
+/** Quantos dias tem o mês. */
+export function daysInMonth(key: MonthKey): number {
+  const { year, monthIndex } = parseMonthKey(key);
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+/** Dia da semana (0 = domingo) de uma data "YYYY-MM-DD", sem passar por fuso. */
+export function weekdayOfDate(date: string): number {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
+/** Soma dias a uma data "YYYY-MM-DD" (aritmética em UTC, imune a fuso/horário de verão). */
+export function addDaysToDate(date: string, delta: number): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day + delta));
+  return shifted.toISOString().slice(0, 10);
+}
+
+/** Data de hoje ("YYYY-MM-DD") no fuso local. */
+export function todayDateValue(): string {
+  return toDateInputValue(new Date());
+}

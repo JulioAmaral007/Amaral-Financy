@@ -19,6 +19,8 @@ import {
   type CreateFixedBillFormValues,
 } from "@/schemas/fixed-bill.schema";
 
+const CATEGORY_OPTIONS = fixedBillCategories.map((category) => ({ value: category, label: category }));
+
 interface AddFixedBillFormProps {
   month: string;
   onDone: () => void;
@@ -79,13 +81,21 @@ export function AddFixedBillForm({ month, onDone, onCancel }: AddFixedBillFormPr
           />
         </FormField>
         <FormField label="Categoria" htmlFor="bill-category">
-          <Select id="bill-category" className="bg-surface" {...register("category")}>
-            {fixedBillCategories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </Select>
+          <Controller
+            control={control}
+            name="category"
+            render={({ field }) => (
+              <Select
+                ref={field.ref}
+                id="bill-category"
+                options={CATEGORY_OPTIONS}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                className="bg-surface"
+              />
+            )}
+          />
         </FormField>
       </div>
       {error && <p className="text-[13px] text-bad">{error}</p>}

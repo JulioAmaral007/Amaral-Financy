@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { createSpendingAction, updateSpendingAction } from "@/actions/spending.actions";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { defaultDateForMonth, monthDateBounds } from "@/lib/month";
@@ -18,7 +19,10 @@ import { spendingCategories, spendingFormSchema, type SpendingFormValues } from 
 import type { Spending, SpendingCategory } from "@/types/month";
 
 /** Opções do seletor de parcelas (1 = à vista). */
-const INSTALLMENT_OPTIONS = [...Array.from({ length: 12 }, (_, i) => i + 1), 18, 24, 36, 48];
+const INSTALLMENT_OPTIONS = [...Array.from({ length: 12 }, (_, i) => i + 1), 18, 24, 36, 48].map((n) => ({
+  value: n,
+  label: n === 1 ? "À vista" : `${n}x`,
+}));
 
 interface SpendingFormProps {
   month: string;
@@ -117,28 +121,39 @@ export function SpendingForm({ month, spending, defaultCategory, onDone, onCance
             />
           )}
         />
-        <Input
-          id={`spending-date-${idSuffix}`}
-          aria-label="Data"
-          type="date"
-          min={bounds.min}
-          max={bounds.max}
-          wrapperClassName="order-4 h-10 rounded-xl sm:order-2 sm:h-12 sm:rounded-[16px]"
-          className="text-[14px]"
-          {...register("date")}
+        <Controller
+          control={control}
+          name="date"
+          render={({ field }) => (
+            <DatePicker
+              ref={field.ref}
+              id={`spending-date-${idSuffix}`}
+              aria-label="Data"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              min={bounds.min}
+              max={bounds.max}
+              className="order-4 h-10 rounded-xl text-[14px] sm:order-2 sm:h-12 sm:rounded-[16px]"
+            />
+          )}
         />
         {!spending && (
-          <Select
-            aria-label="Parcelas"
-            className="order-4 h-10 w-auto rounded-xl text-[14px] sm:order-2 sm:h-12 sm:rounded-[16px]"
-            {...register("installments", { valueAsNumber: true })}
-          >
-            {INSTALLMENT_OPTIONS.map((n) => (
-              <option key={n} value={n}>
-                {n === 1 ? "À vista" : `${n}x`}
-              </option>
-            ))}
-          </Select>
+          <Controller
+            control={control}
+            name="installments"
+            render={({ field }) => (
+              <Select
+                ref={field.ref}
+                aria-label="Parcelas"
+                options={INSTALLMENT_OPTIONS}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                className="order-4 h-10 w-auto rounded-xl text-[14px] sm:order-2 sm:h-12 sm:rounded-[16px]"
+              />
+            )}
+          />
         )}
         {!spending && (
           <Button type="submit" disabled={isPending} className="order-2 h-12 px-4 sm:order-3" aria-label="Lançar gasto">

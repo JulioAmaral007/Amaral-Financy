@@ -19,6 +19,8 @@ import {
 } from "@/schemas/fixed-bill.schema";
 import type { FixedBillView } from "@/services/fixed-bill.service";
 
+const CATEGORY_OPTIONS = fixedBillCategories.map((category) => ({ value: category, label: category }));
+
 interface EditFixedBillFormProps {
   bill: FixedBillView;
   onDone: () => void;
@@ -75,13 +77,21 @@ export function EditFixedBillForm({ bill, onDone, onCancel }: EditFixedBillFormP
           />
         </FormField>
         <FormField label="Categoria" htmlFor={`edit-bill-category-${bill.id}`}>
-          <Select id={`edit-bill-category-${bill.id}`} className="bg-surface" {...register("category")}>
-            {fixedBillCategories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </Select>
+          <Controller
+            control={control}
+            name="category"
+            render={({ field }) => (
+              <Select
+                ref={field.ref}
+                id={`edit-bill-category-${bill.id}`}
+                options={CATEGORY_OPTIONS}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                className="bg-surface"
+              />
+            )}
+          />
         </FormField>
       </div>
       {error && <p className="text-[13px] text-bad">{error}</p>}
