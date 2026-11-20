@@ -4,8 +4,10 @@ import * as fixedBillRepository from "@/repositories/fixed-bill.repository";
 import * as monthSettingsRepository from "@/repositories/month-settings.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as spendingRepository from "@/repositories/spending.repository";
+import * as workspaceRepository from "@/repositories/workspace.repository";
 import type { FixedBill } from "@/types/fixed-bill";
 import type { Profile } from "@/types/profile";
+import type { Workspace } from "@/types/workspace";
 import type { MonthKey, MonthSettings, MonthTotals, Spending, SpendingCategory } from "@/types/month";
 
 import { sumIncludedFixedBills } from "./fixed-bill.service";
@@ -19,6 +21,7 @@ export const EMPTY_BUDGETS: Record<SpendingCategory, number> = {
 
 export interface MonthSnapshot {
   month: MonthKey;
+  workspace: Workspace;
   settings: MonthSettings;
   profile: Profile;
   bills: FixedBill[];
@@ -80,14 +83,15 @@ export async function updateMonthSettings(
 }
 
 export async function getMonthSnapshot(month: MonthKey): Promise<MonthSnapshot> {
-  const [settings, profile, bills, spendings] = await Promise.all([
+  const [workspace, settings, profile, bills, spendings] = await Promise.all([
+    workspaceRepository.getActiveWorkspace(),
     getMonthSettings(month),
     profileRepository.getProfile(),
     fixedBillRepository.listFixedBillsForMonth(month),
     spendingRepository.listSpendingsForMonth(month),
   ]);
 
-  return { month, settings, profile, bills, spendings, totals: computeMonthTotals(bills, spendings) };
+  return { month, workspace, settings, profile, bills, spendings, totals: computeMonthTotals(bills, spendings) };
 }
 
 /** Total (contas somadas + cartão) de cada mês que tem algum lançamento. */
@@ -114,6 +118,35 @@ export async function getTotalsByMonth(): Promise<Record<MonthKey, number>> {
     totals[month] = computeMonthTotals(billsByMonth.get(month) ?? [], spendingsByMonth.get(month) ?? []).total;
   }
   return totals;
+}
+
+/**
+ * Quantos meses seguidos, terminando no mês anterior a `month`, os gastos do
+ * cartão ficaram dentro do total estimado. Para no primeiro mês sem gastos
+ * lançados (sem dados não há o que comemorar) ou sem estimativa.
+ */
+export async function getBudgetStreak(month: MonthKey, maxMonths = 36): Promise<number> {
+  const spendings = await spendingRepository.listAllSpendings();
+  const spentByMonth = new Map<MonthKey, number>();
+  for (const spending of spendings) {
+    const key = monthKeyFromDate(spending.date);
+    spentByMonth.set(key, (spentByMonth.get(key) ?? 0) + spending.amount);
+  }
+
+  let streak = 0;
+  let cursor = shiftMonth(month, -1);
+  for (let i = 0; i < maxMonths; i++) {
+    const spent = spentByMonth.get(cursor);
+    if (spent === undefined) break;
+
+    const { budgets } = await getMonthSettings(cursor);
+    const budget = Object.values(budgets).reduce((sum, value) => sum + value, 0);
+    if (budget <= 0 || round2(spent) > budget) break;
+
+    streak++;
+    cursor = shiftMonth(cursor, -1);
+  }
+  return streak;
 }
 
 /** Copia as contas do mês anterior para `month`; devolve quantas foram copiadas. */

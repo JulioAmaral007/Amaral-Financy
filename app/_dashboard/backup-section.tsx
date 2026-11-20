@@ -6,8 +6,6 @@ import { toast } from "sonner";
 
 import { exportBackupAction, importBackupAction } from "@/actions/backup.actions";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { ReceiptTitle, StarDivider } from "@/components/ui/receipt";
 import { toDateInputValue } from "@/lib/month";
 
 /**
@@ -28,8 +26,9 @@ export function BackupSection() {
       link.download = `rumo-backup-${toDateInputValue(new Date())}.json`;
       link.click();
       URL.revokeObjectURL(url);
+      toast.success("Backup baixado.");
     } catch {
-      toast.error("Erro ao gerar o backup. Tente novamente.");
+      toast.error("Não foi possível gerar o backup. Tente de novo.");
     }
   }
 
@@ -39,7 +38,7 @@ export function BackupSection() {
     if (!file) return;
 
     const confirmed = window.confirm(
-      "Importar este backup substitui TODOS os dados atuais do sistema neste navegador. Deseja continuar?"
+      "Importar este backup substitui TODOS os dados atuais deste navegador. Continuar?"
     );
     if (!confirmed) return;
 
@@ -54,26 +53,23 @@ export function BackupSection() {
       // Tudo mudou: recarregar é mais simples e seguro do que sincronizar cada seção.
       window.location.reload();
     } catch {
-      toast.error("Erro ao ler o arquivo. Tente novamente.");
+      toast.error("Não foi possível ler o arquivo. Confira se é um backup do Rumo.");
     } finally {
       setIsImporting(false);
     }
   }
 
   return (
-    <Card className="rotate-[0.2deg]">
-      <ReceiptTitle className="tracking-[0.1em]">BACKUP</ReceiptTitle>
-      <p className="mt-0.5 text-[12px] uppercase tracking-[0.1em] text-ink-faint">
-        seus dados ficam só neste navegador
+    <footer className="flex flex-col items-center gap-2 pt-1 text-center sm:flex-row sm:justify-between sm:text-left">
+      <p className="text-[13px] text-muted">
+        Seus dados ficam só neste navegador. Baixe um backup de vez em quando.
       </p>
-      <StarDivider className="mb-3.5 mt-2.5" />
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Button variant="outline" onClick={handleExport}>
-          <Download className="h-4 w-4" /> Exportar backup
+      <div className="flex gap-1">
+        <Button variant="ghost" size="sm" onClick={handleExport}>
+          <Download className="h-4 w-4" /> Baixar backup
         </Button>
-        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
-          <Upload className="h-4 w-4" /> Importar backup
+        <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+          <Upload className="h-4 w-4" /> Importar
         </Button>
         <input
           ref={fileInputRef}
@@ -83,6 +79,6 @@ export function BackupSection() {
           onChange={handleFileChosen}
         />
       </div>
-    </Card>
+    </footer>
   );
 }

@@ -1,31 +1,86 @@
-import { STORAGE_KEYS } from "@/lib/local-storage/keys";
+import {
+  DEFAULT_WORKSPACE_ID,
+  WORKSPACE_DATA_NAMES,
+  WORKSPACE_KEY_PREFIX,
+  WORKSPACE_STORAGE_KEYS,
+  getActiveWorkspaceId,
+  workspaceDataKey,
+} from "@/lib/local-storage/keys";
 import { readStorage, writeStorage } from "@/lib/local-storage/storage";
-import type { BackupFile } from "@/schemas/backup.schema";
+import type { BackupFile, BackupWorkspaceData } from "@/schemas/backup.schema";
+
+import { readAllStoredWorkspaces } from "./workspace.repository";
+
+function readWorkspaceData(workspaceId: string): BackupWorkspaceData {
+  return {
+    profile: readStorage<BackupWorkspaceData["profile"]>(workspaceDataKey(workspaceId, "profile"), null),
+    fixedBills: readStorage<BackupWorkspaceData["fixedBills"]>(workspaceDataKey(workspaceId, "fixed-bills"), []),
+    history: readStorage<BackupWorkspaceData["history"]>(workspaceDataKey(workspaceId, "history"), []),
+    spendings: readStorage<BackupWorkspaceData["spendings"]>(workspaceDataKey(workspaceId, "spendings"), []),
+    months: readStorage<BackupWorkspaceData["months"]>(workspaceDataKey(workspaceId, "months"), {}),
+  };
+}
+
+function writeWorkspaceData(workspaceId: string, data: BackupWorkspaceData): void {
+  if (data.profile) writeStorage(workspaceDataKey(workspaceId, "profile"), data.profile);
+  writeStorage(workspaceDataKey(workspaceId, "fixed-bills"), data.fixedBills);
+  writeStorage(workspaceDataKey(workspaceId, "history"), data.history);
+  writeStorage(workspaceDataKey(workspaceId, "spendings"), data.spendings);
+  writeStorage(workspaceDataKey(workspaceId, "months"), data.months);
+}
+
+/** Apaga tudo o que o app guarda (todos os perfis), sem tocar em chaves de outros sites/apps. */
+function clearAllAppData(): void {
+  const storage = window.localStorage;
+
+  for (const name of WORKSPACE_DATA_NAMES) storage.removeItem(workspaceDataKey(DEFAULT_WORKSPACE_ID, name));
+  storage.removeItem(WORKSPACE_STORAGE_KEYS.LIST);
+  storage.removeItem(WORKSPACE_STORAGE_KEYS.ACTIVE);
+
+  const extraKeys: string[] = [];
+  for (let index = 0; index < storage.length; index++) {
+    const key = storage.key(index);
+    if (key?.startsWith(WORKSPACE_KEY_PREFIX)) extraKeys.push(key);
+  }
+  extraKeys.forEach((key) => storage.removeItem(key));
+}
 
 export function exportBackup(): BackupFile {
   return {
     app: "rumo",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
-    data: {
-      profile: readStorage<BackupFile["data"]["profile"]>(STORAGE_KEYS.PROFILE, null),
-      fixedBills: readStorage<BackupFile["data"]["fixedBills"]>(STORAGE_KEYS.FIXED_BILLS, []),
-      history: readStorage<BackupFile["data"]["history"]>(STORAGE_KEYS.HISTORY, []),
-      spendings: readStorage<BackupFile["data"]["spendings"]>(STORAGE_KEYS.SPENDINGS, []),
-      months: readStorage<BackupFile["data"]["months"]>(STORAGE_KEYS.MONTHS, {}),
-    },
+    activeWorkspaceId: getActiveWorkspaceId(),
+    workspaces: readAllStoredWorkspaces().map((workspace) => ({
+      ...workspace,
+      data: readWorkspaceData(workspace.id),
+    })),
   };
 }
 
-/** Substitui tudo o que está guardado pelo conteúdo do backup. */
+/** Substitui tudo o que está guardado (todos os perfis) pelo conteúdo do backup. */
 export function importBackup(backup: BackupFile): void {
-  const { data } = backup;
+  clearAllAppData();
 
-  if (data.profile) writeStorage(STORAGE_KEYS.PROFILE, data.profile);
-  else window.localStorage.removeItem(STORAGE_KEYS.PROFILE);
+  for (const workspace of backup.workspaces) {
+    writeWorkspaceData(workspace.id, workspace.data);
+  }
 
-  writeStorage(STORAGE_KEYS.FIXED_BILLS, data.fixedBills);
-  writeStorage(STORAGE_KEYS.HISTORY, data.history);
-  writeStorage(STORAGE_KEYS.SPENDINGS, data.spendings);
-  writeStorage(STORAGE_KEYS.MONTHS, data.months);
+  writeStorage(
+    WORKSPACE_STORAGE_KEYS.LIST,
+    backup.workspaces.map((workspace) => ({
+      id: workspace.id,
+      name: workspace.name,
+      splitEnabled: workspace.splitEnabled,
+      createdAt: workspace.createdAt,
+      updatedAt: workspace.updatedAt,
+      deletedAt: workspace.deletedAt,
+    }))
+  );
+
+  const active = backup.workspaces.find(
+    (workspace) => workspace.id === backup.activeWorkspaceId && !workspace.deletedAt
+  );
+  const fallback = backup.workspaces.find((workspace) => !workspace.deletedAt);
+  window.localStorage.setItem(WORKSPACE_STORAGE_KEYS.ACTIVE, (active ?? fallback)?.id ?? DEFAULT_WORKSPACE_ID);
 }
