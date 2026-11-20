@@ -19,8 +19,12 @@ owner's "controle financeiro" Excel sheet (one tab per month). A month selector 
   Mercado, Outros) with *estimado / gasto / saldo*. Their sum is the "cartão de crédito" line of the month.
 - **Contas do mês** (`fixed-bills-*`) — the monthly bills (Unimed, água, internet…). Bills belong to a month
   (`FixedBill.month`); an empty month can copy the previous month's bills. `includedInBill` = "counts in the total".
-- **Histórico** (`history-*`) — year chart of monthly totals + the divisions registered for the selected month.
-- **Backup** — export/import of every localStorage key as JSON (`schemas/backup.schema.ts`); import replaces all.
+- **Histórico** (`history-*`) — the divisions registered for the selected month. The year chart is the month
+  navigator itself (`year-ruler.tsx`: one bar per month, click to open it).
+- **Perfil** (`workspace-*`) — the top bar switches between independent data sets ("Casa", "Pessoal"…). Each
+  profile has its own bills, spending, month settings, history and saved salaries, plus a `splitEnabled` flag:
+  with it off the profile shows only a month summary (`month-summary-card.tsx`), no Divisão/histórico.
+- **Backup** — export/import of every profile's data as JSON (`schemas/backup.schema.ts`, v2); import replaces all.
 
 Month total = included bills + spending (`services/month.service.ts:computeMonthTotals`) — the sheet's "TOTAL".
 Saldo a dividir = total − (INSS + Extra Pai).
@@ -80,6 +84,18 @@ MonthSettings>`): per-month INSS, Extra Pai, split mode and the per-category *va
 settings of its own **inherits** from the latest earlier month (extra pai resets to 0) —
 `month.service.getMonthSettings`. Settings are only written when something is edited.
 
+### Profiles (workspaces)
+
+`types/workspace.ts` (not to be confused with `Profile` = saved salaries), `repositories/workspace.repository.ts`
+(list under `financy:workspaces`, soft-deleted, active id under `financy:active-workspace`). Isolation is done by
+**localStorage key namespacing** (`lib/local-storage/keys.ts`): the default profile `casa` keeps the original keys
+(`financy:fixed-bills`…, so pre-profile data needed no migration); others use `financy:ws:<id>:<name>`.
+`STORAGE_KEYS.X` are getters that resolve the **active** profile on every access — repositories keep using them
+unchanged, so any new per-profile store must be added to `WORKSPACE_DATA_NAMES` and the backup schema.
+Switching/creating/editing a profile ends in `window.location.reload()` (fresh state, no stale sections, and
+pending debounced saves can't leak into another profile). Removing a profile is a soft delete (data kept,
+restorable from the edit panel); the last profile can't be removed.
+
 Names shown for the three "salaries" live in `lib/people.ts` — change them there, not in components.
 
 ## Domain model
@@ -93,12 +109,18 @@ Names shown for the three "salaries" live in `lib/people.ts` — change them the
   (`fixed-bill.repository.readAll`). Zero-valued bills aren't representable in the UI (amount must be > 0).
 - **Spending** (`types/month.ts`, `services/spending.service.ts`): `date` is a `"YYYY-MM-DD"` string; its month is
   `date.slice(0, 7)` (`monthKeyFromDate`) — never derive it through `Date`/timezone.
+- **Parcelamento** (`Spending.installment = { groupId, number, total }`): a compra parcelada vira N `Spending`
+  independentes, uma por mês (`addMonthsToDate` em `lib/month.ts`), criadas por
+  `spending.repository.createInstallmentSpendings`. O valor digitado é o **total**; a última parcela absorve os
+  centavos. Cada parcela é editável isoladamente; "remover esta e as seguintes" usa `deleteInstallmentsFrom`.
 - **History** (`types/history.ts`, `repositories/history.repository.ts`): one entry per "Registrar divisão",
   carrying its `month` (legacy entries fall back to the month of `calculatedAt`), soft-deletable. The chart does
   **not** read history — monthly totals come from bills + spending (`month.service.getTotalsByMonth`,
   `services/bill-split-chart.service.ts`).
-- **Backup** (`schemas/backup.schema.ts`, `services/backup.service.ts`): `{ app: "rumo", version: 1, data }`;
-  keep the schema in sync when adding a localStorage key (`lib/local-storage/keys.ts`).
+- **Backup** (`schemas/backup.schema.ts`, `services/backup.service.ts`): v2 =
+  `{ app: "rumo", version: 2, activeWorkspaceId, workspaces: [{ …workspace, data }] }`. v1 files (single data
+  set, pre-profiles) are still accepted and become the "Casa" profile. Workspace ids end up in storage keys, so the
+  schema restricts them to `[A-Za-z0-9-]`. Keep the schema in sync when adding a per-profile store.
 
 ## Conventions actually in effect
 
@@ -113,8 +135,33 @@ Names shown for the three "salaries" live in `lib/people.ts` — change them the
 - Validation is zod-first: schemas live in `schemas/*.schema.ts` and the inferred type is the action's input
   type. Form schemas that use `CurrencyInput` (masked centavos strings) are a separate schema from the numeric
   schema.
-- UI primitives (`components/ui/*`) are small, unstyled-opinionated components (button, card, badge, select,
-  pagination, currency-input, toggle-check, receipt) — reuse them instead of introducing new form primitives.
+- UI primitives (`components/ui/*`) are small, opinionated components (button, card + CardHeader, badge, input,
+  select, pagination, currency-input, toggle-check) — reuse them instead of introducing new form primitives.
+
+### Visual design
+
+Tokens live in `app/globals.css` (`bg`, `surface`, `sunken`, `ink`, `muted`, `faint`, `line`, `good`, `bad`) plus one
+fixed color per person: `pai` (amarelo), `thais` (azul), `julio` (tomate). Person colour classes are centralised in
+`app/_dashboard/people-colors.ts`. Fonts: Bricolage Grotesque (`font-display`, titles and money via `.money`) and
+Onest (body). The signature element is the split bar (`split-bar.tsx`) at the top of the month; light gamification
+is the month-closing ring (`month-progress.tsx`, confetti on completion) and the budget streak
+(`month.service.getBudgetStreak`). Copy is pt-BR, sentence case, no uppercase-tracking labels.
+
+**Density.** The dashboard is tuned so the important numbers need minimal scrolling: at 1280×900 the month hero,
+the spending card and the bills are visible without scrolling. Desktop is two columns (`app/page.tsx`: spending left; bills +
+divisions stacked right). The spending list shows 5 rows then "Ver todos". On phones `section-nav.tsx` is a floating
+shortcut bar (Mês · Gastos · Contas · Divisões) driven by the card ids `mes`/`gastos`/`contas`/`divisoes` — keep those
+ids if you restructure the sections. Prefer one-line list rows and inline controls over new stacked rows.
+
+**Dark mode.** Every colour is a CSS variable in `app/globals.css`, redefined for dark under
+`@media (prefers-color-scheme: dark) :root:not([data-theme="light"])` and again under `:root[data-theme="dark"]` —
+keep both blocks in sync. Use tokens, never `text-white`/`bg-white`/hex in components: text on an `bg-ink` surface is
+`text-on-ink`, on the Thais blue `text-on-thais`, on the yellow/tomato slices `text-onyx`; shadows are `shadow-card`,
+`shadow-pill`, `shadow-raised`, `shadow-pop` (in dark they include a 1px light edge instead of relying on shadow).
+The preference (`system`/`light`/`dark`) lives in `lib/theme.ts` (localStorage `rumo:theme`, not part of the backup);
+`THEME_INIT_SCRIPT` runs in `<head>` before paint to avoid a flash; `components/layout/theme-toggle.tsx` cycles it.
+`text-faint` is only for placeholders/decorative/disabled — it is below 4.5:1, so informative small text uses
+`text-muted`. Tabular figures only on money (`.money`); Onest's tabular digits look gappy in running text.
 - `README.md` describes an earlier, unbuilt version of this project — it does not reflect the current codebase.
   Don't treat it as a source of truth; this file supersedes it.
 </content>
