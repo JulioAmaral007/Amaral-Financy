@@ -15,6 +15,8 @@ export interface FixedBill {
   category: FixedBillCategory;
   payer: FixedBillPayer;
   includedInBill: boolean;
+  /** Mês ao qual a conta pertence, no formato "YYYY-MM". */
+  month: string;
   createdAt: string;
   updatedAt: string;
 }
