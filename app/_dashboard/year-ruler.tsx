@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { MONTH_NAMES, MONTH_SHORT_LABELS, currentMonthKey, makeMonthKey, parseMonthKey, shiftMonth } from "@/lib/month";
 import { cn, formatCurrencyBRL } from "@/lib/utils";
+import { notifyLoadError } from "@/lib/load-error";
 import * as monthService from "@/services/month.service";
 
 import { useDataReloadKey } from "./use-data-reload-key";
@@ -26,7 +27,7 @@ export function YearRuler() {
     let cancelled = false;
     monthService.getTotalsByMonth().then((totals) => {
       if (!cancelled) setTotalsByMonth(totals);
-    });
+    }, notifyLoadError);
     return () => {
       cancelled = true;
     };

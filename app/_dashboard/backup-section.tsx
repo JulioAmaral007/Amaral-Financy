@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { toDateInputValue } from "@/lib/month";
 
 /**
- * Os dados ficam só neste navegador (localStorage): limpar os dados do site ou
- * trocar de computador apaga tudo. O backup em arquivo é a proteção contra isso
- * e também o caminho para levar os dados da planilha para o sistema.
+ * Os dados ficam na conta (Supabase), então acompanham o login em qualquer aparelho.
+ * O backup em arquivo é uma cópia de segurança extra e também o caminho para levar
+ * para a conta os dados que ficaram no navegador (versão antiga, só localStorage).
  */
 export function BackupSection() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,7 +38,7 @@ export function BackupSection() {
     if (!file) return;
 
     const confirmed = window.confirm(
-      "Importar este backup substitui TODOS os dados atuais deste navegador. Continuar?"
+      "Importar este backup substitui TODOS os dados atuais da sua conta. Continuar?"
     );
     if (!confirmed) return;
 
@@ -62,7 +62,7 @@ export function BackupSection() {
   return (
     <footer className="flex flex-col items-center gap-2 pt-1 text-center sm:flex-row sm:justify-between sm:text-left">
       <p className="text-[13px] text-muted">
-        Seus dados ficam só neste navegador. Baixe um backup de vez em quando.
+        Seus dados ficam salvos na sua conta. Baixe um backup de vez em quando.
       </p>
       <div className="flex gap-1">
         <Button variant="ghost" size="sm" onClick={handleExport}>

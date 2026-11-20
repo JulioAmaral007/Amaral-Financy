@@ -1,21 +1,11 @@
-import { STORAGE_KEYS } from "@/lib/local-storage/keys";
-import { readStorage, writeStorage } from "@/lib/local-storage/storage";
-import { toMonthKey } from "@/lib/month";
+import { getActiveWorkspaceId } from "@/lib/active-workspace";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { assertNoError, unwrapMaybe } from "@/lib/supabase/errors";
 import type { HistoryEntry } from "@/types/history";
 
-interface StoredHistoryEntry extends Omit<HistoryEntry, "month"> {
-  /** Ausente em cálculos registrados antes do controle por mês. */
-  month?: string;
-  deletedAt: string | null;
-}
+import { historyEntryFromRow, historyEntryToRow, type HistoryEntryRow, type StoredHistoryEntry } from "./rows";
 
-function readAll(): StoredHistoryEntry[] {
-  return readStorage<StoredHistoryEntry[]>(STORAGE_KEYS.HISTORY, []);
-}
-
-function writeAll(entries: StoredHistoryEntry[]): void {
-  writeStorage(STORAGE_KEYS.HISTORY, entries);
-}
+const TABLE = "history_entries";
 
 function stripDeleted(entry: StoredHistoryEntry): HistoryEntry {
   return {
@@ -25,31 +15,28 @@ function stripDeleted(entry: StoredHistoryEntry): HistoryEntry {
     salary2Payment: entry.salary2Payment,
     salary3Payment: entry.salary3Payment,
     calculatedAt: entry.calculatedAt,
-    month: entry.month ?? toMonthKey(new Date(entry.calculatedAt)),
+    month: entry.month,
   };
 }
 
-function sortByCalculatedAtDesc(entries: HistoryEntry[]): HistoryEntry[] {
-  return [...entries].sort(
-    (a, b) => new Date(b.calculatedAt).getTime() - new Date(a.calculatedAt).getTime()
-  );
-}
-
+/** Divisões do mês, mais recentes primeiro, já paginadas pelo banco. */
 export async function listHistoryPage(pagination: {
   limit: number;
   offset: number;
-  month?: string;
+  month: string;
 }): Promise<{ entries: HistoryEntry[]; total: number }> {
-  const all = sortByCalculatedAtDesc(
-    readAll()
-      .filter((entry) => !entry.deletedAt)
-      .map(stripDeleted)
-      .filter((entry) => !pagination.month || entry.month === pagination.month)
-  );
-  return {
-    entries: all.slice(pagination.offset, pagination.offset + pagination.limit),
-    total: all.length,
-  };
+  const { data, count, error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .select("*", { count: "exact" })
+    .eq("workspace_id", getActiveWorkspaceId())
+    .eq("month", pagination.month)
+    .is("deleted_at", null)
+    .order("calculated_at", { ascending: false })
+    .range(pagination.offset, pagination.offset + pagination.limit - 1);
+  assertNoError(error, "Erro ao listar o histórico");
+
+  const rows = (data ?? []) as HistoryEntryRow[];
+  return { entries: rows.map(historyEntryFromRow).map(stripDeleted), total: count ?? 0 };
 }
 
 export async function createHistoryEntry(input: {
@@ -70,7 +57,10 @@ export async function createHistoryEntry(input: {
     deletedAt: null,
   };
 
-  writeAll([...readAll(), entry]);
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .insert(historyEntryToRow(getActiveWorkspaceId(), entry));
+  assertNoError(error, "Erro ao registrar a divisão");
   return stripDeleted(entry);
 }
 
@@ -83,34 +73,44 @@ export async function updateHistoryEntry(
     salary3Payment: number;
   }
 ): Promise<HistoryEntry> {
-  const all = readAll();
-  const index = all.findIndex((entry) => entry.id === id && !entry.deletedAt);
-  if (index === -1) throw new Error("Cálculo não encontrado");
-
-  all[index] = { ...all[index], ...input };
-  writeAll(all);
-  return stripDeleted(all[index]);
+  const row = unwrapMaybe<HistoryEntryRow>(
+    await createBrowserSupabaseClient()
+      .from(TABLE)
+      .update({
+        bill_amount: input.billAmount,
+        salary1_payment: input.salary1Payment,
+        salary2_payment: input.salary2Payment,
+        salary3_payment: input.salary3Payment,
+      })
+      .eq("id", id)
+      .is("deleted_at", null)
+      .select()
+      .maybeSingle(),
+    "Erro ao atualizar o cálculo"
+  );
+  if (!row) throw new Error("Cálculo não encontrado");
+  return stripDeleted(historyEntryFromRow(row));
 }
 
 /**
- * Soft delete: marca `deletedAt` em vez de remover o registro, preservando
+ * Soft delete: marca `deleted_at` em vez de remover a linha, preservando
  * o histórico/auditoria — mesmo padrão utilizado em contas fixas.
  */
 export async function deleteHistoryEntry(id: string): Promise<void> {
-  const all = readAll();
-  const index = all.findIndex((entry) => entry.id === id && !entry.deletedAt);
-  if (index === -1) return;
-
-  all[index] = { ...all[index], deletedAt: new Date().toISOString() };
-  writeAll(all);
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
+  assertNoError(error, "Erro ao remover o cálculo");
 }
 
 /** Reverte um soft delete: usado pelo "Desfazer" mostrado ao remover um cálculo. */
 export async function restoreHistoryEntry(id: string): Promise<void> {
-  const all = readAll();
-  const index = all.findIndex((entry) => entry.id === id && entry.deletedAt);
-  if (index === -1) return;
-
-  all[index] = { ...all[index], deletedAt: null };
-  writeAll(all);
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .update({ deleted_at: null })
+    .eq("id", id)
+    .not("deleted_at", "is", null);
+  assertNoError(error, "Erro ao restaurar o cálculo");
 }

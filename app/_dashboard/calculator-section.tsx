@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { shiftMonth } from "@/lib/month";
+import { notifyLoadError } from "@/lib/load-error";
 import * as historyService from "@/services/history.service";
 import * as monthService from "@/services/month.service";
 import type { MonthSnapshot } from "@/services/month.service";
@@ -40,7 +41,7 @@ export function CalculatorSection() {
         historyCount: historyPage.total,
         previousTotal: totalsByMonth[shiftMonth(month, -1)] ?? 0,
       });
-    });
+    }, notifyLoadError);
 
     return () => {
       cancelled = true;

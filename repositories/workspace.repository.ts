@@ -1,17 +1,16 @@
-import {
-  DEFAULT_WORKSPACE_ID,
-  WORKSPACE_STORAGE_KEYS,
-  getActiveWorkspaceId,
-  setActiveWorkspaceId,
-} from "@/lib/local-storage/keys";
-import { readStorage, writeStorage } from "@/lib/local-storage/storage";
+import { DEFAULT_WORKSPACE_ID, getActiveWorkspaceId, setActiveWorkspaceId } from "@/lib/active-workspace";
+import { createBrowserSupabaseClient, requireUserId } from "@/lib/supabase/client";
+import { assertNoError, unwrapList, unwrapMaybe } from "@/lib/supabase/errors";
 import type { Workspace } from "@/types/workspace";
 
-export interface StoredWorkspace extends Workspace {
-  deletedAt: string | null;
-}
+import { workspaceFromRow, workspaceToRow, type StoredWorkspace, type WorkspaceRow } from "./rows";
+
+export type { StoredWorkspace };
+
+const TABLE = "workspaces";
 
 function defaultWorkspace(): StoredWorkspace {
+  // Época como data de criação: o perfil padrão sempre fica primeiro na lista.
   const epoch = new Date(0).toISOString();
   return {
     id: DEFAULT_WORKSPACE_ID,
@@ -23,14 +22,26 @@ function defaultWorkspace(): StoredWorkspace {
   };
 }
 
-/** Sem lista salva, existe só o perfil padrão "Casa" (os dados que já havia antes dos perfis). */
-export function readAllStoredWorkspaces(): StoredWorkspace[] {
-  const stored = readStorage<StoredWorkspace[]>(WORKSPACE_STORAGE_KEYS.LIST, []);
-  return stored.length > 0 ? stored : [defaultWorkspace()];
-}
+/**
+ * Todos os perfis da conta, inclusive os removidos. Conta nova (sem nenhum perfil) ganha o padrão
+ * "Casa", criado aqui na primeira leitura.
+ */
+export async function readAllStoredWorkspaces(): Promise<StoredWorkspace[]> {
+  const supabase = createBrowserSupabaseClient();
+  const rows = unwrapList<WorkspaceRow>(
+    await supabase.from(TABLE).select("*").order("created_at").order("id"),
+    "Erro ao listar os perfis"
+  );
+  if (rows.length > 0) return rows.map(workspaceFromRow);
 
-function writeAll(workspaces: StoredWorkspace[]): void {
-  writeStorage(WORKSPACE_STORAGE_KEYS.LIST, workspaces);
+  const fallback = defaultWorkspace();
+  const userId = await requireUserId();
+  // `ignoreDuplicates`: duas leituras simultâneas não brigam pela criação do perfil padrão.
+  const { error } = await supabase
+    .from(TABLE)
+    .upsert({ user_id: userId, ...workspaceToRow(fallback) }, { onConflict: "user_id,id", ignoreDuplicates: true });
+  assertNoError(error, "Erro ao criar o perfil padrão");
+  return [fallback];
 }
 
 function stripDeleted(workspace: StoredWorkspace): Workspace {
@@ -44,16 +55,12 @@ function stripDeleted(workspace: StoredWorkspace): Workspace {
 }
 
 export async function listWorkspaces(): Promise<Workspace[]> {
-  return readAllStoredWorkspaces()
-    .filter((workspace) => !workspace.deletedAt)
-    .map(stripDeleted);
+  return (await readAllStoredWorkspaces()).filter((workspace) => !workspace.deletedAt).map(stripDeleted);
 }
 
 /** Perfis removidos (com os dados ainda guardados), que podem ser restaurados. */
 export async function listDeletedWorkspaces(): Promise<Workspace[]> {
-  return readAllStoredWorkspaces()
-    .filter((workspace) => workspace.deletedAt)
-    .map(stripDeleted);
+  return (await readAllStoredWorkspaces()).filter((workspace) => workspace.deletedAt).map(stripDeleted);
 }
 
 /** Perfil ativo; se o salvo não existe mais, cai para o primeiro disponível e corrige a escolha. */
@@ -76,6 +83,9 @@ export async function setActiveWorkspace(id: string): Promise<void> {
 }
 
 export async function createWorkspace(input: { name: string; splitEnabled: boolean }): Promise<Workspace> {
+  // Garante que o perfil padrão já exista antes de somar outro à lista.
+  await readAllStoredWorkspaces();
+
   const now = new Date().toISOString();
   const workspace: StoredWorkspace = {
     id: crypto.randomUUID(),
@@ -86,8 +96,8 @@ export async function createWorkspace(input: { name: string; splitEnabled: boole
     deletedAt: null,
   };
 
-  // Ao criar o primeiro perfil extra, o padrão "Casa" passa a ficar salvo explicitamente.
-  writeAll([...readAllStoredWorkspaces(), workspace]);
+  const { error } = await createBrowserSupabaseClient().from(TABLE).insert(workspaceToRow(workspace));
+  assertNoError(error, "Erro ao criar o perfil");
   return stripDeleted(workspace);
 }
 
@@ -95,30 +105,35 @@ export async function updateWorkspace(
   id: string,
   input: { name: string; splitEnabled: boolean }
 ): Promise<Workspace> {
-  const all = readAllStoredWorkspaces();
-  const index = all.findIndex((workspace) => workspace.id === id && !workspace.deletedAt);
-  if (index === -1) throw new Error("Perfil não encontrado");
-
-  all[index] = { ...all[index], ...input, updatedAt: new Date().toISOString() };
-  writeAll(all);
-  return stripDeleted(all[index]);
+  const row = unwrapMaybe<WorkspaceRow>(
+    await createBrowserSupabaseClient()
+      .from(TABLE)
+      .update({ name: input.name, split_enabled: input.splitEnabled, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .is("deleted_at", null)
+      .select()
+      .maybeSingle(),
+    "Erro ao atualizar o perfil"
+  );
+  if (!row) throw new Error("Perfil não encontrado");
+  return stripDeleted(workspaceFromRow(row));
 }
 
 /** Soft delete: os dados do perfil permanecem guardados e voltam com o "Desfazer". */
 export async function deleteWorkspace(id: string): Promise<void> {
-  const all = readAllStoredWorkspaces();
-  const index = all.findIndex((workspace) => workspace.id === id && !workspace.deletedAt);
-  if (index === -1) return;
-
-  all[index] = { ...all[index], deletedAt: new Date().toISOString() };
-  writeAll(all);
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
+  assertNoError(error, "Erro ao remover o perfil");
 }
 
 export async function restoreWorkspace(id: string): Promise<void> {
-  const all = readAllStoredWorkspaces();
-  const index = all.findIndex((workspace) => workspace.id === id && workspace.deletedAt);
-  if (index === -1) return;
-
-  all[index] = { ...all[index], deletedAt: null, updatedAt: new Date().toISOString() };
-  writeAll(all);
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .update({ deleted_at: null, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .not("deleted_at", "is", null);
+  assertNoError(error, "Erro ao restaurar o perfil");
 }

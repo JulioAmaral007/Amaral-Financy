@@ -1,6 +1,11 @@
-import { STORAGE_KEYS } from "@/lib/local-storage/keys";
-import { readStorage, writeStorage } from "@/lib/local-storage/storage";
+import { getActiveWorkspaceId } from "@/lib/active-workspace";
+import { createBrowserSupabaseClient, requireUserId } from "@/lib/supabase/client";
+import { unwrapMaybe } from "@/lib/supabase/errors";
 import type { Profile } from "@/types/profile";
+
+import { salariesFromRow, type WorkspaceSalariesRow } from "./rows";
+
+const TABLE = "workspace_salaries";
 
 const DEFAULT_PROFILE: Profile = {
   salary1: 0,
@@ -11,7 +16,15 @@ const DEFAULT_PROFILE: Profile = {
 };
 
 export async function getProfile(): Promise<Profile> {
-  return readStorage(STORAGE_KEYS.PROFILE, DEFAULT_PROFILE);
+  const row = unwrapMaybe<WorkspaceSalariesRow>(
+    await createBrowserSupabaseClient()
+      .from(TABLE)
+      .select("*")
+      .eq("workspace_id", getActiveWorkspaceId())
+      .maybeSingle(),
+    "Erro ao ler os salários"
+  );
+  return row ? salariesFromRow(row) : DEFAULT_PROFILE;
 }
 
 export async function updateProfileSalaries(salaries: {
@@ -19,12 +32,24 @@ export async function updateProfileSalaries(salaries: {
   salary2: number;
   salary3: number;
 }): Promise<Profile> {
-  const profile: Profile = {
-    ...(await getProfile()),
-    ...salaries,
-    updatedAt: new Date().toISOString(),
-  };
-
-  writeStorage(STORAGE_KEYS.PROFILE, profile);
-  return profile;
+  const userId = await requireUserId();
+  // `created_at` fica de fora: na primeira gravação vale o padrão do banco, depois permanece.
+  const row = unwrapMaybe<WorkspaceSalariesRow>(
+    await createBrowserSupabaseClient()
+      .from(TABLE)
+      .upsert(
+        {
+          user_id: userId,
+          workspace_id: getActiveWorkspaceId(),
+          ...salaries,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,workspace_id" }
+      )
+      .select()
+      .maybeSingle(),
+    "Erro ao salvar os salários"
+  );
+  if (!row) throw new Error("Não foi possível salvar os salários");
+  return salariesFromRow(row);
 }

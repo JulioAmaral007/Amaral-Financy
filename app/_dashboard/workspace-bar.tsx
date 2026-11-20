@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { restoreWorkspaceAction, switchWorkspaceAction } from "@/actions/workspace.actions";
 import { cn } from "@/lib/utils";
+import { notifyLoadError } from "@/lib/load-error";
 import * as workspaceService from "@/services/workspace.service";
 import type { Workspace } from "@/types/workspace";
 
@@ -23,8 +24,8 @@ const iconButtonClass =
   "flex h-8 w-8 flex-none cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-ink/5 hover:text-ink";
 
 /**
- * Troca de perfil, no cabeçalho. Os dados de cada perfil ficam em chaves
- * próprias do localStorage; trocar muda o perfil ativo e recarrega a página,
+ * Troca de perfil, no cabeçalho. Os dados de cada perfil ficam na conta (Supabase,
+ * filtrados por `workspace_id`); trocar muda o perfil ativo e recarrega a página,
  * o que reinicia todas as seções (e descarta edições pendentes) de uma vez.
  */
 export function WorkspaceBar() {
@@ -45,7 +46,7 @@ export function WorkspaceBar() {
     let cancelled = false;
     load().then((result) => {
       if (!cancelled) setData(result);
-    });
+    }, notifyLoadError);
     return () => {
       cancelled = true;
     };

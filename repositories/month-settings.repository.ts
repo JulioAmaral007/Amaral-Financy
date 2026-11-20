@@ -1,28 +1,46 @@
-import { STORAGE_KEYS } from "@/lib/local-storage/keys";
-import { readStorage, writeStorage } from "@/lib/local-storage/storage";
+import { getActiveWorkspaceId } from "@/lib/active-workspace";
+import { createBrowserSupabaseClient, requireUserId } from "@/lib/supabase/client";
+import { assertNoError, unwrapMaybe } from "@/lib/supabase/errors";
 import type { MonthKey, MonthSettings } from "@/types/month";
 
-type StoredMonths = Record<MonthKey, MonthSettings>;
+import { monthSettingsFromRow, monthSettingsToRow, type MonthSettingsRow } from "./rows";
 
-function readAll(): StoredMonths {
-  return readStorage<StoredMonths>(STORAGE_KEYS.MONTHS, {});
-}
+const TABLE = "month_settings";
 
 export async function getMonthSettings(month: MonthKey): Promise<MonthSettings | null> {
-  return readAll()[month] ?? null;
+  const row = unwrapMaybe<MonthSettingsRow>(
+    await createBrowserSupabaseClient()
+      .from(TABLE)
+      .select("*")
+      .eq("workspace_id", getActiveWorkspaceId())
+      .eq("month", month)
+      .maybeSingle(),
+    "Erro ao ler os ajustes do mês"
+  );
+  return row ? monthSettingsFromRow(row) : null;
 }
 
 /** Ajustes do mês mais recente anterior a `month` — base para um mês ainda sem ajustes próprios. */
 export async function getLatestMonthSettingsBefore(month: MonthKey): Promise<MonthSettings | null> {
-  const all = readAll();
-  const previous = Object.keys(all)
-    .filter((key) => key < month)
-    .sort();
-  const latest = previous[previous.length - 1];
-  return latest ? all[latest] : null;
+  const row = unwrapMaybe<MonthSettingsRow>(
+    await createBrowserSupabaseClient()
+      .from(TABLE)
+      .select("*")
+      .eq("workspace_id", getActiveWorkspaceId())
+      .lt("month", month)
+      .order("month", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    "Erro ao ler os ajustes do mês anterior"
+  );
+  return row ? monthSettingsFromRow(row) : null;
 }
 
 export async function saveMonthSettings(settings: MonthSettings): Promise<MonthSettings> {
-  writeStorage(STORAGE_KEYS.MONTHS, { ...readAll(), [settings.month]: settings });
+  const userId = await requireUserId();
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .upsert({ user_id: userId, ...monthSettingsToRow(getActiveWorkspaceId(), settings) }, { onConflict: "user_id,workspace_id,month" });
+  assertNoError(error, "Erro ao salvar os ajustes do mês");
   return settings;
 }

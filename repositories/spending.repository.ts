@@ -1,20 +1,13 @@
-import { STORAGE_KEYS } from "@/lib/local-storage/keys";
-import { readStorage, writeStorage } from "@/lib/local-storage/storage";
-import { addMonthsToDate, monthKeyFromDate } from "@/lib/month";
+import { getActiveWorkspaceId } from "@/lib/active-workspace";
+import { addMonthsToDate, shiftMonth } from "@/lib/month";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { assertNoError, fetchAllPages, unwrapList, unwrapMaybe } from "@/lib/supabase/errors";
 import { round2 } from "@/lib/utils";
 import type { Spending, SpendingCategory } from "@/types/month";
 
-interface StoredSpending extends Spending {
-  deletedAt: string | null;
-}
+import { spendingFromRow, spendingToRow, type SpendingRow, type StoredSpending } from "./rows";
 
-function readAll(): StoredSpending[] {
-  return readStorage<StoredSpending[]>(STORAGE_KEYS.SPENDINGS, []);
-}
-
-function writeAll(spendings: StoredSpending[]): void {
-  writeStorage(STORAGE_KEYS.SPENDINGS, spendings);
-}
+const TABLE = "spendings";
 
 function stripDeleted(spending: StoredSpending): Spending {
   return {
@@ -29,26 +22,47 @@ function stripDeleted(spending: StoredSpending): Spending {
   };
 }
 
-/** Mais recentes primeiro (data e, no empate, ordem de criação). */
-function sortByDateDesc(spendings: Spending[]): Spending[] {
-  return [...spendings].sort(
-    (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
-  );
-}
-
 /** Todos os gastos de todos os meses — usado para a agregação anual do gráfico. */
 export async function listAllSpendings(): Promise<Spending[]> {
-  return readAll()
-    .filter((spending) => !spending.deletedAt)
-    .map(stripDeleted);
+  const workspaceId = getActiveWorkspaceId();
+  const rows = await fetchAllPages<SpendingRow>(
+    (from, to) =>
+      createBrowserSupabaseClient()
+        .from(TABLE)
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .is("deleted_at", null)
+        .order("date")
+        .order("id")
+        .range(from, to),
+    "Erro ao listar os gastos"
+  );
+  return rows.map(spendingFromRow).map(stripDeleted);
 }
 
+/** Mais recentes primeiro (data e, no empate, ordem de criação). */
 export async function listSpendingsForMonth(month: string): Promise<Spending[]> {
-  return sortByDateDesc(
-    readAll()
-      .filter((spending) => !spending.deletedAt && monthKeyFromDate(spending.date) === month)
-      .map(stripDeleted)
+  const rows = unwrapList<SpendingRow>(
+    await createBrowserSupabaseClient()
+      .from(TABLE)
+      .select("*")
+      .eq("workspace_id", getActiveWorkspaceId())
+      .gte("date", `${month}-01`)
+      .lt("date", `${shiftMonth(month, 1)}-01`)
+      .is("deleted_at", null)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false }),
+    "Erro ao listar os gastos do mês"
   );
+  return rows.map(spendingFromRow).map(stripDeleted);
+}
+
+async function insertSpendings(spendings: StoredSpending[]): Promise<void> {
+  const workspaceId = getActiveWorkspaceId();
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .insert(spendings.map((spending) => spendingToRow(workspaceId, spending)));
+  assertNoError(error, "Erro ao salvar o gasto");
 }
 
 export async function createSpending(input: {
@@ -69,7 +83,7 @@ export async function createSpending(input: {
     deletedAt: null,
   };
 
-  writeAll([...readAll(), spending]);
+  await insertSpendings([spending]);
   return stripDeleted(spending);
 }
 
@@ -103,7 +117,7 @@ export async function createInstallmentSpendings(input: {
     };
   });
 
-  writeAll([...readAll(), ...created]);
+  await insertSpendings(created);
   return created.map(stripDeleted);
 }
 
@@ -111,23 +125,28 @@ export async function updateSpending(
   id: string,
   input: { category: SpendingCategory; date: string; amount: number; note: string }
 ): Promise<Spending> {
-  const all = readAll();
-  const index = all.findIndex((spending) => spending.id === id && !spending.deletedAt);
-  if (index === -1) throw new Error("Gasto não encontrado");
-
-  all[index] = { ...all[index], ...input, updatedAt: new Date().toISOString() };
-  writeAll(all);
-  return stripDeleted(all[index]);
+  const row = unwrapMaybe<SpendingRow>(
+    await createBrowserSupabaseClient()
+      .from(TABLE)
+      .update({ ...input, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .is("deleted_at", null)
+      .select()
+      .maybeSingle(),
+    "Erro ao atualizar o gasto"
+  );
+  if (!row) throw new Error("Gasto não encontrado");
+  return stripDeleted(spendingFromRow(row));
 }
 
-/** Soft delete: marca `deletedAt` em vez de remover o registro. */
+/** Soft delete: marca `deleted_at` em vez de remover a linha. */
 export async function deleteSpending(id: string): Promise<void> {
-  const all = readAll();
-  const index = all.findIndex((spending) => spending.id === id && !spending.deletedAt);
-  if (index === -1) return;
-
-  all[index] = { ...all[index], deletedAt: new Date().toISOString() };
-  writeAll(all);
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
+  assertNoError(error, "Erro ao remover o gasto");
 }
 
 /**
@@ -135,33 +154,29 @@ export async function deleteSpending(id: string): Promise<void> {
  * Devolve os ids removidos (para o "Desfazer").
  */
 export async function deleteInstallmentsFrom(groupId: string, fromNumber: number): Promise<string[]> {
-  const now = new Date().toISOString();
-  const removed: string[] = [];
-  const all = readAll().map((spending) => {
-    if (
-      spending.deletedAt ||
-      spending.installment?.groupId !== groupId ||
-      spending.installment.number < fromNumber
-    ) {
-      return spending;
-    }
-    removed.push(spending.id);
-    return { ...spending, deletedAt: now };
-  });
-
-  writeAll(all);
-  return removed;
+  const rows = unwrapList<{ id: string }>(
+    await createBrowserSupabaseClient()
+      .from(TABLE)
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("installment_group_id", groupId)
+      .gte("installment_number", fromNumber)
+      .is("deleted_at", null)
+      .select("id"),
+    "Erro ao remover as parcelas"
+  );
+  return rows.map((row) => row.id);
 }
 
 /** Reverte um soft delete: usado pelo "Desfazer" mostrado ao remover um gasto. */
 export async function restoreSpendings(ids: string[]): Promise<void> {
-  const idSet = new Set(ids);
-  const now = new Date().toISOString();
-  writeAll(
-    readAll().map((spending) =>
-      idSet.has(spending.id) && spending.deletedAt ? { ...spending, deletedAt: null, updatedAt: now } : spending
-    )
-  );
+  if (ids.length === 0) return;
+
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .update({ deleted_at: null, updated_at: new Date().toISOString() })
+    .in("id", ids)
+    .not("deleted_at", "is", null);
+  assertNoError(error, "Erro ao restaurar o gasto");
 }
 
 export async function restoreSpending(id: string): Promise<void> {

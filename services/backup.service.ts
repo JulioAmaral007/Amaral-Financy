@@ -1,12 +1,12 @@
 import * as backupRepository from "@/repositories/backup.repository";
 import { backupFileSchema, type BackupFile } from "@/schemas/backup.schema";
 
-export function createBackup(): BackupFile {
+export async function createBackup(): Promise<BackupFile> {
   return backupRepository.exportBackup();
 }
 
-/** Valida o texto do arquivo e, se for um backup do Rumo, substitui os dados locais por ele. */
-export function restoreBackup(text: string): { error?: string } {
+/** Valida o texto do arquivo e, se for um backup do Rumo, substitui os dados da conta por ele. */
+export async function restoreBackup(text: string): Promise<{ error?: string }> {
   let json: unknown;
   try {
     json = JSON.parse(text);
@@ -19,6 +19,6 @@ export function restoreBackup(text: string): { error?: string } {
     return { error: "O arquivo não é um backup do Rumo ou está com dados inválidos." };
   }
 
-  backupRepository.importBackup(parsed.data);
+  await backupRepository.importBackup(parsed.data);
   return {};
 }

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
 import { MONTH_NAMES, parseMonthKey } from "@/lib/month";
+import { notifyLoadError } from "@/lib/load-error";
 import * as historyService from "@/services/history.service";
 import * as workspaceService from "@/services/workspace.service";
 import type { HistoryEntry } from "@/types/history";
@@ -43,7 +44,8 @@ export function HistorySection() {
           page: historyPage.page,
           totalPages: historyPage.totalPages,
         });
-      }
+      },
+      notifyLoadError
     );
 
     return () => {

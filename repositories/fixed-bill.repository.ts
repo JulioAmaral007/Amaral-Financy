@@ -1,33 +1,13 @@
-import { STORAGE_KEYS } from "@/lib/local-storage/keys";
-import { readStorage, writeStorage } from "@/lib/local-storage/storage";
-import { currentMonthKey } from "@/lib/month";
+import { getActiveWorkspaceId } from "@/lib/active-workspace";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { assertNoError, fetchAllPages, unwrapList, unwrapMaybe } from "@/lib/supabase/errors";
 import type { FixedBill, FixedBillCategory, FixedBillPayer } from "@/types/fixed-bill";
 
-interface StoredFixedBill extends Omit<FixedBill, "month"> {
-  /** Ausente em contas criadas antes do controle por mês. */
-  month?: string;
-  deletedAt: string | null;
-}
+import { fixedBillFromRow, fixedBillToRow, type FixedBillRow, type StoredFixedBill } from "./rows";
 
-/**
- * Contas criadas antes do controle por mês não têm `month`: elas passam a
- * valer para o mês corrente na primeira leitura e a migração é gravada.
- */
-function readAll(): Array<StoredFixedBill & { month: string }> {
-  const stored = readStorage<StoredFixedBill[]>(STORAGE_KEYS.FIXED_BILLS, []);
-  if (stored.every((bill) => bill.month)) return stored as Array<StoredFixedBill & { month: string }>;
+const TABLE = "fixed_bills";
 
-  const fallbackMonth = currentMonthKey();
-  const migrated = stored.map((bill) => ({ ...bill, month: bill.month ?? fallbackMonth }));
-  writeStorage(STORAGE_KEYS.FIXED_BILLS, migrated);
-  return migrated;
-}
-
-function writeAll(bills: StoredFixedBill[]): void {
-  writeStorage(STORAGE_KEYS.FIXED_BILLS, bills);
-}
-
-function stripDeleted(bill: StoredFixedBill & { month: string }): FixedBill {
+function stripDeleted(bill: StoredFixedBill): FixedBill {
   return {
     id: bill.id,
     name: bill.name,
@@ -42,19 +22,39 @@ function stripDeleted(bill: StoredFixedBill & { month: string }): FixedBill {
 }
 
 /**
- * Todas as contas fixas de todos os meses, sem paginação — usado para a
+ * Todas as contas fixas de todos os meses, sem paginação de tela — usado para a
  * agregação por mês do gráfico, que precisa do conjunto completo.
  */
 export async function listAllFixedBills(): Promise<FixedBill[]> {
-  return readAll()
-    .filter((bill) => !bill.deletedAt)
-    .map(stripDeleted);
+  const workspaceId = getActiveWorkspaceId();
+  const rows = await fetchAllPages<FixedBillRow>(
+    (from, to) =>
+      createBrowserSupabaseClient()
+        .from(TABLE)
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .is("deleted_at", null)
+        .order("created_at")
+        .order("id")
+        .range(from, to),
+    "Erro ao listar as contas"
+  );
+  return rows.map(fixedBillFromRow).map(stripDeleted);
 }
 
 export async function listFixedBillsForMonth(month: string): Promise<FixedBill[]> {
-  return readAll()
-    .filter((bill) => !bill.deletedAt && bill.month === month)
-    .map(stripDeleted);
+  const rows = unwrapList<FixedBillRow>(
+    await createBrowserSupabaseClient()
+      .from(TABLE)
+      .select("*")
+      .eq("workspace_id", getActiveWorkspaceId())
+      .eq("month", month)
+      .is("deleted_at", null)
+      .order("created_at")
+      .order("id"),
+    "Erro ao listar as contas do mês"
+  );
+  return rows.map(fixedBillFromRow).map(stripDeleted);
 }
 
 export async function createFixedBill(input: {
@@ -65,7 +65,7 @@ export async function createFixedBill(input: {
   payer: FixedBillPayer;
 }): Promise<FixedBill> {
   const now = new Date().toISOString();
-  const bill: StoredFixedBill & { month: string } = {
+  const bill: StoredFixedBill = {
     id: crypto.randomUUID(),
     month: input.month,
     name: input.name,
@@ -79,71 +79,93 @@ export async function createFixedBill(input: {
     deletedAt: null,
   };
 
-  writeAll([...readAll(), bill]);
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .insert(fixedBillToRow(getActiveWorkspaceId(), bill));
+  assertNoError(error, "Erro ao criar a conta");
   return stripDeleted(bill);
 }
 
 /** Duplica as contas de um mês para outro (novos ids), devolvendo quantas foram copiadas. */
 export async function copyFixedBills(fromMonth: string, toMonth: string): Promise<number> {
-  const all = readAll();
+  const workspaceId = getActiveWorkspaceId();
+  const supabase = createBrowserSupabaseClient();
   const now = new Date().toISOString();
 
-  const copies = all
-    .filter((bill) => !bill.deletedAt && bill.month === fromMonth)
-    .map((bill) => ({
+  const source = unwrapList<FixedBillRow>(
+    await supabase
+      .from(TABLE)
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .eq("month", fromMonth)
+      .is("deleted_at", null)
+      .order("created_at")
+      .order("id"),
+    "Erro ao ler as contas do mês anterior"
+  );
+
+  const copies = source.map(fixedBillFromRow).map((bill) =>
+    fixedBillToRow(workspaceId, {
       ...bill,
       id: crypto.randomUUID(),
       month: toMonth,
       createdAt: now,
       updatedAt: now,
-    }));
+    })
+  );
 
-  if (copies.length > 0) writeAll([...all, ...copies]);
+  if (copies.length === 0) return 0;
+
+  const { error } = await supabase.from(TABLE).insert(copies);
+  assertNoError(error, "Erro ao copiar as contas");
   return copies.length;
+}
+
+async function updateActiveRow(id: string, patch: Record<string, unknown>): Promise<FixedBill> {
+  const row = unwrapMaybe<FixedBillRow>(
+    await createBrowserSupabaseClient()
+      .from(TABLE)
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .is("deleted_at", null)
+      .select()
+      .maybeSingle(),
+    "Erro ao atualizar a conta"
+  );
+  if (!row) throw new Error("Conta fixa não encontrada");
+  return stripDeleted(fixedBillFromRow(row));
 }
 
 export async function updateFixedBill(
   id: string,
   input: { name: string; amount: number; category: FixedBillCategory }
 ): Promise<FixedBill> {
-  const all = readAll();
-  const index = all.findIndex((bill) => bill.id === id && !bill.deletedAt);
-  if (index === -1) throw new Error("Conta fixa não encontrada");
-
-  all[index] = { ...all[index], ...input, updatedAt: new Date().toISOString() };
-  writeAll(all);
-  return stripDeleted(all[index]);
+  return updateActiveRow(id, input);
 }
 
 export async function toggleFixedBillIncluded(id: string, includedInBill: boolean): Promise<FixedBill> {
-  const all = readAll();
-  const index = all.findIndex((bill) => bill.id === id && !bill.deletedAt);
-  if (index === -1) throw new Error("Conta fixa não encontrada");
-
-  all[index] = { ...all[index], includedInBill, updatedAt: new Date().toISOString() };
-  writeAll(all);
-  return stripDeleted(all[index]);
+  return updateActiveRow(id, { included_in_bill: includedInBill });
 }
 
 /**
- * Soft delete: marca `deletedAt` em vez de remover o registro, preservando
- * o histórico/auditoria — mesmo comportamento da versão com Supabase.
+ * Soft delete: marca `deleted_at` em vez de remover a linha, preservando
+ * o histórico/auditoria.
  */
 export async function deleteFixedBill(id: string): Promise<void> {
-  const all = readAll();
-  const index = all.findIndex((bill) => bill.id === id && !bill.deletedAt);
-  if (index === -1) return;
-
-  all[index] = { ...all[index], deletedAt: new Date().toISOString() };
-  writeAll(all);
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
+  assertNoError(error, "Erro ao remover a conta");
 }
 
 /** Reverte um soft delete: usado pelo "Desfazer" mostrado ao remover uma conta fixa. */
 export async function restoreFixedBill(id: string): Promise<void> {
-  const all = readAll();
-  const index = all.findIndex((bill) => bill.id === id && bill.deletedAt);
-  if (index === -1) return;
-
-  all[index] = { ...all[index], deletedAt: null, updatedAt: new Date().toISOString() };
-  writeAll(all);
+  const { error } = await createBrowserSupabaseClient()
+    .from(TABLE)
+    .update({ deleted_at: null, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .not("deleted_at", "is", null);
+  assertNoError(error, "Erro ao restaurar a conta");
 }

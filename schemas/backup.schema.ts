@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DEFAULT_WORKSPACE_ID } from "@/lib/local-storage/keys";
+import { DEFAULT_WORKSPACE_ID } from "@/lib/active-workspace";
 
 import { fixedBillCategories, fixedBillPayers } from "./fixed-bill.schema";
 import { budgetsSchema, monthKeySchema, splitModes } from "./month.schema";
@@ -66,7 +66,7 @@ const profileSchema = z.object({
   updatedAt: z.string(),
 });
 
-/** Tudo o que um perfil guarda no localStorage. */
+/** Tudo o que um perfil guarda (contas, gastos, histórico, ajustes de mês e salários). */
 const workspaceDataSchema = z.object({
   profile: profileSchema.nullable().default(null),
   fixedBills: z.array(storedFixedBillSchema).default([]),
@@ -75,7 +75,7 @@ const workspaceDataSchema = z.object({
   months: z.record(monthKeySchema, storedMonthSettingsSchema).default({}),
 });
 
-/** O id vira parte de chave do localStorage: só uuid / "casa". */
+/** O id do perfil é só uuid / "casa" (o banco também confere esse formato). */
 const workspaceIdSchema = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
 
 const backupWorkspaceSchema = z.object({

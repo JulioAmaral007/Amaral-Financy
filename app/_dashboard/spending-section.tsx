@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { notifyLoadError } from "@/lib/load-error";
 import * as monthService from "@/services/month.service";
 import type { MonthSnapshot } from "@/services/month.service";
 
@@ -20,7 +21,8 @@ export function SpendingSection() {
     Promise.all([monthService.getMonthSnapshot(month), monthService.getBudgetStreak(month)]).then(
       ([snapshot, streak]) => {
         if (!cancelled) setData({ snapshot, streak });
-      }
+      },
+      notifyLoadError
     );
 
     return () => {

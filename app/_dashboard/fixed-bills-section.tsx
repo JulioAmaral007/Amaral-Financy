@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { shiftMonth } from "@/lib/month";
+import { notifyLoadError } from "@/lib/load-error";
 import * as fixedBillService from "@/services/fixed-bill.service";
 import type { FixedBillView } from "@/services/fixed-bill.service";
 
@@ -30,7 +31,7 @@ export function FixedBillsSection() {
     ]).then(([bills, previousBills]) => {
       if (cancelled) return;
       setData({ month, bills, previousMonthBillCount: previousBills.length });
-    });
+    }, notifyLoadError);
 
     return () => {
       cancelled = true;
