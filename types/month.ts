@@ -6,6 +6,14 @@ export type SplitMode = "equal" | "proportional";
 
 export type SpendingCategory = "Carne" | "Gasolina" | "Mercado" | "Outros";
 
+/** Identifica uma parcela de compra parcelada: "number" de "total" (ex.: 2/5). */
+export interface SpendingInstallment {
+  /** Compartilhado por todas as parcelas da mesma compra. */
+  groupId: string;
+  number: number;
+  total: number;
+}
+
 /** Gasto avulso (cartão de crédito da casa), lançado com data. */
 export interface Spending {
   id: string;
@@ -14,6 +22,8 @@ export interface Spending {
   date: string;
   amount: number;
   note: string;
+  /** Presente só nas parcelas de uma compra parcelada. */
+  installment?: SpendingInstallment;
   createdAt: string;
   updatedAt: string;
 }

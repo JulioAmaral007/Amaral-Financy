@@ -13,6 +13,19 @@ export const spendingSchema = z.object({
 
 export type SpendingInput = z.infer<typeof spendingSchema>;
 
+export const MAX_INSTALLMENTS = 48;
+
+/** Novo lançamento: `amount` é o total da compra, dividido em `installments` parcelas mensais. */
+export const newSpendingSchema = spendingSchema.extend({
+  installments: z
+    .number()
+    .int("Informe o número de parcelas")
+    .min(1, "Informe o número de parcelas")
+    .max(MAX_INSTALLMENTS, `Use até ${MAX_INSTALLMENTS} parcelas`),
+});
+
+export type NewSpendingInput = z.infer<typeof newSpendingSchema>;
+
 /**
  * Schema usado pelo React Hook Form no cliente: amount fica como texto livre
  * (centavos mascarados) enquanto o usuário digita. A conversão para número
@@ -23,6 +36,7 @@ export const spendingFormSchema = z.object({
   date: dateField,
   amount: z.string().min(1, "Informe o valor"),
   note: z.string().trim().max(80, "Use até 80 caracteres"),
+  installments: z.number().int().min(1).max(MAX_INSTALLMENTS),
 });
 
 export type SpendingFormValues = z.infer<typeof spendingFormSchema>;

@@ -64,6 +64,18 @@ export function shiftMonth(key: MonthKey, delta: number): MonthKey {
   return makeMonthKey(Math.floor(total / 12), ((total % 12) + 12) % 12);
 }
 
+/**
+ * Soma meses a uma data "YYYY-MM-DD" mantendo o dia (ou o último dia do mês
+ * de destino, se ele não existir — ex.: 31/01 + 1 mês = 28/02). Sem `Date`.
+ */
+export function addMonthsToDate(date: string, delta: number): string {
+  const day = Number(date.slice(8, 10));
+  const target = shiftMonth(monthKeyFromDate(date), delta);
+  const { year, monthIndex } = parseMonthKey(target);
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  return `${target}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
+}
+
 /** Ex.: "Novembro 2026". */
 export function monthLabel(key: MonthKey): string {
   const { year, monthIndex } = parseMonthKey(key);

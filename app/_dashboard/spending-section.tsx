@@ -12,21 +12,23 @@ import { useSelectedMonth } from "./use-selected-month";
 export function SpendingSection() {
   const [month] = useSelectedMonth();
   const reloadKey = useDataReloadKey();
-  const [snapshot, setSnapshot] = useState<MonthSnapshot | null>(null);
+  const [data, setData] = useState<{ snapshot: MonthSnapshot; streak: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    monthService.getMonthSnapshot(month).then((result) => {
-      if (!cancelled) setSnapshot(result);
-    });
+    Promise.all([monthService.getMonthSnapshot(month), monthService.getBudgetStreak(month)]).then(
+      ([snapshot, streak]) => {
+        if (!cancelled) setData({ snapshot, streak });
+      }
+    );
 
     return () => {
       cancelled = true;
     };
   }, [month, reloadKey]);
 
-  if (!snapshot || snapshot.month !== month) return null;
+  if (!data || data.snapshot.month !== month) return null;
 
-  return <SpendingView snapshot={snapshot} />;
+  return <SpendingView key={month} snapshot={data.snapshot} streak={data.streak} />;
 }

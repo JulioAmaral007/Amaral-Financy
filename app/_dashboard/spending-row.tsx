@@ -1,15 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil } from "lucide-react";
+import { CalendarX2, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { deleteSpendingAction, restoreSpendingAction } from "@/actions/spending.actions";
+import {
+  deleteInstallmentsFromAction,
+  deleteSpendingAction,
+  restoreSpendingAction,
+  restoreSpendingsAction,
+} from "@/actions/spending.actions";
 import { emitMonthDataUpdated } from "@/lib/month-events";
 import { formatShortDate } from "@/lib/month";
 import { formatCurrencyBRL } from "@/lib/utils";
 import type { Spending } from "@/types/month";
 
+import { RowActions } from "./row-actions";
 import { SpendingForm } from "./spending-form";
 
 interface SpendingRowProps {
@@ -20,6 +26,7 @@ interface SpendingRowProps {
 export function SpendingRow({ month, spending }: SpendingRowProps) {
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
+  const installment = spending.installment;
 
   function handleRemove() {
     startTransition(async () => {
@@ -35,7 +42,27 @@ export function SpendingRow({ month, spending }: SpendingRowProps) {
           },
         });
       } catch {
-        toast.error("Erro ao remover o gasto. Tente novamente.");
+        toast.error("Não foi possível remover o gasto. Tente de novo.");
+      }
+    });
+  }
+
+  /** Remove esta parcela e as seguintes da mesma compra. */
+  function handleRemoveRemaining(groupId: string, fromNumber: number) {
+    startTransition(async () => {
+      try {
+        const ids = await deleteInstallmentsFromAction(groupId, fromNumber);
+        emitMonthDataUpdated();
+        toast(`${ids.length} ${ids.length === 1 ? "parcela removida" : "parcelas removidas"}.`, {
+          action: {
+            label: "Desfazer",
+            onClick: () => {
+              restoreSpendingsAction(ids).then(emitMonthDataUpdated);
+            },
+          },
+        });
+      } catch {
+        toast.error("Não foi possível remover as parcelas. Tente de novo.");
       }
     });
   }
@@ -52,35 +79,34 @@ export function SpendingRow({ month, spending }: SpendingRowProps) {
   }
 
   return (
-    <div className="flex items-center gap-3 border-b border-dashed border-rule-faint px-1 py-2.5">
-      <span className="w-[42px] flex-none text-[12px] text-ink-faint">{formatShortDate(spending.date)}</span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-bold text-ink">{spending.category}</p>
-        {spending.note && <p className="truncate text-[11.5px] text-ink-faint">{spending.note}</p>}
-      </div>
-      <div className="w-[100px] flex-none text-right text-[14px] font-bold text-ink">
-        {formatCurrencyBRL(spending.amount)}
-      </div>
-      <div className="flex flex-none items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setIsEditing(true)}
-          disabled={isPending}
-          className="px-1 py-1 text-ink-faint transition-colors hover:text-ink disabled:opacity-50"
-          aria-label={`Editar gasto de ${spending.category}`}
-        >
-          <Pencil className="h-[15px] w-[15px]" />
-        </button>
-        <button
-          type="button"
-          onClick={handleRemove}
-          disabled={isPending}
-          className="px-1 py-1 text-[17px] leading-none text-ink-faint transition-colors hover:text-ink disabled:opacity-50"
-          aria-label={`Remover gasto de ${spending.category}`}
-        >
-          ×
-        </button>
-      </div>
+    <div className="group flex items-center gap-3 border-b border-line/70 py-2 last:border-b-0">
+      <span className="w-10 flex-none text-[12.5px] text-muted">{formatShortDate(spending.date)}</span>
+      <p className="min-w-0 flex-1 truncate text-[14px]">
+        <span className="font-medium text-ink">{spending.note || spending.category}</span>
+        {spending.note && <span className="text-[12.5px] text-muted"> · {spending.category}</span>}
+        {installment && (
+          <span className="ml-1.5 rounded-full bg-sunken px-1.5 py-0.5 align-middle text-[11.5px] font-semibold text-muted">
+            {installment.number}/{installment.total}
+          </span>
+        )}
+      </p>
+      <span className="money flex-none text-[15px] font-bold text-ink">{formatCurrencyBRL(spending.amount)}</span>
+      <RowActions
+        disabled={isPending}
+        actions={[
+          { icon: Pencil, label: `Editar gasto de ${spending.category}`, onClick: () => setIsEditing(true) },
+          { icon: X, label: `Remover gasto de ${spending.category}`, onClick: handleRemove },
+          ...(installment && installment.number < installment.total
+            ? [
+                {
+                  icon: CalendarX2,
+                  label: "Remover esta parcela e as seguintes",
+                  onClick: () => handleRemoveRemaining(installment.groupId, installment.number),
+                },
+              ]
+            : []),
+        ]}
+      />
     </div>
   );
 }

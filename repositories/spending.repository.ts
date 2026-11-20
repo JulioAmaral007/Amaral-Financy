@@ -1,6 +1,7 @@
 import { STORAGE_KEYS } from "@/lib/local-storage/keys";
 import { readStorage, writeStorage } from "@/lib/local-storage/storage";
-import { monthKeyFromDate } from "@/lib/month";
+import { addMonthsToDate, monthKeyFromDate } from "@/lib/month";
+import { round2 } from "@/lib/utils";
 import type { Spending, SpendingCategory } from "@/types/month";
 
 interface StoredSpending extends Spending {
@@ -22,6 +23,7 @@ function stripDeleted(spending: StoredSpending): Spending {
     date: spending.date,
     amount: spending.amount,
     note: spending.note,
+    ...(spending.installment ? { installment: spending.installment } : {}),
     createdAt: spending.createdAt,
     updatedAt: spending.updatedAt,
   };
@@ -71,6 +73,40 @@ export async function createSpending(input: {
   return stripDeleted(spending);
 }
 
+/**
+ * Compra parcelada: divide `amount` (total) em `installments` parcelas, uma por
+ * mês a partir de `date`. A última parcela absorve a diferença de centavos.
+ */
+export async function createInstallmentSpendings(input: {
+  category: SpendingCategory;
+  date: string;
+  amount: number;
+  note: string;
+  installments: number;
+}): Promise<Spending[]> {
+  const now = new Date().toISOString();
+  const groupId = crypto.randomUUID();
+  const base = round2(Math.floor(Math.round(input.amount * 100) / input.installments) / 100);
+
+  const created: StoredSpending[] = Array.from({ length: input.installments }, (_, index) => {
+    const isLast = index === input.installments - 1;
+    return {
+      id: crypto.randomUUID(),
+      category: input.category,
+      date: addMonthsToDate(input.date, index),
+      amount: isLast ? round2(input.amount - base * (input.installments - 1)) : base,
+      note: input.note,
+      installment: { groupId, number: index + 1, total: input.installments },
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    };
+  });
+
+  writeAll([...readAll(), ...created]);
+  return created.map(stripDeleted);
+}
+
 export async function updateSpending(
   id: string,
   input: { category: SpendingCategory; date: string; amount: number; note: string }
@@ -94,12 +130,40 @@ export async function deleteSpending(id: string): Promise<void> {
   writeAll(all);
 }
 
-/** Reverte um soft delete: usado pelo "Desfazer" mostrado ao remover um gasto. */
-export async function restoreSpending(id: string): Promise<void> {
-  const all = readAll();
-  const index = all.findIndex((spending) => spending.id === id && spending.deletedAt);
-  if (index === -1) return;
+/**
+ * Soft delete da parcela `fromNumber` e das seguintes da mesma compra.
+ * Devolve os ids removidos (para o "Desfazer").
+ */
+export async function deleteInstallmentsFrom(groupId: string, fromNumber: number): Promise<string[]> {
+  const now = new Date().toISOString();
+  const removed: string[] = [];
+  const all = readAll().map((spending) => {
+    if (
+      spending.deletedAt ||
+      spending.installment?.groupId !== groupId ||
+      spending.installment.number < fromNumber
+    ) {
+      return spending;
+    }
+    removed.push(spending.id);
+    return { ...spending, deletedAt: now };
+  });
 
-  all[index] = { ...all[index], deletedAt: null, updatedAt: new Date().toISOString() };
   writeAll(all);
+  return removed;
+}
+
+/** Reverte um soft delete: usado pelo "Desfazer" mostrado ao remover um gasto. */
+export async function restoreSpendings(ids: string[]): Promise<void> {
+  const idSet = new Set(ids);
+  const now = new Date().toISOString();
+  writeAll(
+    readAll().map((spending) =>
+      idSet.has(spending.id) && spending.deletedAt ? { ...spending, deletedAt: null, updatedAt: now } : spending
+    )
+  );
+}
+
+export async function restoreSpending(id: string): Promise<void> {
+  return restoreSpendings([id]);
 }

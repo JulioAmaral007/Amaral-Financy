@@ -26,7 +26,7 @@ function toCents(value: number): string {
   return value ? String(Math.round(value * 100)) : "";
 }
 
-/** "Valor estimado" de cada categoria no mês — a coluna VALOR ESTIMADO da planilha. */
+/** Quanto se espera gastar em cada categoria no mês. */
 export function BudgetsForm({ month, budgets, onDone, onCancel }: BudgetsFormProps) {
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
@@ -63,30 +63,32 @@ export function BudgetsForm({ month, budgets, onDone, onCancel }: BudgetsFormPro
   }
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="mb-4 flex flex-col gap-3 border-[1.5px] border-rule-faint bg-paper-dim p-[18px]"
-    >
-      <p className="text-[11.5px] uppercase tracking-[0.12em] text-ink-faint">Valor estimado para o mês</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <form onSubmit={handleSubmit(onSubmit)} className="mb-6 flex flex-col gap-4 rounded-[22px] bg-sunken p-4">
+      <p className="text-[13.5px] text-muted">Quanto vocês esperam gastar em cada categoria este mês?</p>
+      <div className="grid grid-cols-2 gap-3">
         {spendingCategories.map((category) => (
           <FormField key={category} label={category} htmlFor={`budget-${category}`}>
             <Controller
               control={control}
               name={category}
               render={({ field }) => (
-                <CurrencyInput id={`budget-${category}`} value={field.value} onValueChange={field.onChange} />
+                <CurrencyInput
+                  id={`budget-${category}`}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  wrapperClassName="bg-surface"
+                />
               )}
             />
           </FormField>
         ))}
       </div>
-      {error && <p className="text-[12.5px] text-red">!! {error}</p>}
-      <div className="flex justify-end gap-2.5">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      {error && <p className="text-[13px] text-bad">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" size="sm" disabled={isPending}>
           {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar estimativas"}
         </Button>
       </div>
