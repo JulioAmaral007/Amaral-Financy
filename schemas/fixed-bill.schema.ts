@@ -12,6 +12,7 @@ export const fixedBillCategories = [
 export const fixedBillPayers = ["salary1", "salary2", "salary3", "split"] as const;
 
 export const createFixedBillSchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Mês inválido"),
   name: z.string().trim().min(1, "Informe o nome da conta"),
   amount: z.number().positive("Informe um valor válido"),
   category: z.enum(fixedBillCategories),
@@ -33,3 +34,19 @@ export const createFixedBillFormSchema = z.object({
 });
 
 export type CreateFixedBillFormValues = z.infer<typeof createFixedBillFormSchema>;
+
+export const updateFixedBillSchema = z.object({
+  name: z.string().trim().min(1, "Informe o nome da conta"),
+  amount: z.number().positive("Informe um valor válido"),
+  category: z.enum(fixedBillCategories),
+});
+
+export type UpdateFixedBillInput = z.infer<typeof updateFixedBillSchema>;
+
+export const updateFixedBillFormSchema = z.object({
+  name: z.string().trim().min(1, "Informe o nome da conta"),
+  amount: z.string().min(1, "Informe o valor da conta"),
+  category: z.enum(fixedBillCategories),
+});
+
+export type UpdateFixedBillFormValues = z.infer<typeof updateFixedBillFormSchema>;

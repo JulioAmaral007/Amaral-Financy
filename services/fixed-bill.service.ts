@@ -1,14 +1,12 @@
+import { PERSON_LABELS } from "@/lib/people";
 import * as fixedBillRepository from "@/repositories/fixed-bill.repository";
-import type { CreateFixedBillInput } from "@/schemas/fixed-bill.schema";
+import type { CreateFixedBillInput, UpdateFixedBillInput } from "@/schemas/fixed-bill.schema";
 import type { FixedBill, FixedBillPayer } from "@/types/fixed-bill";
-import type { PaginatedResult } from "@/types/pagination";
-
-export const FIXED_BILLS_PAGE_SIZE = 10;
 
 export const PAYER_LABELS: Record<FixedBillPayer, string> = {
-  salary1: "Salário 1",
-  salary2: "Salário 2",
-  salary3: "Salário 3",
+  salary1: PERSON_LABELS.salary1,
+  salary2: PERSON_LABELS.salary2,
+  salary3: PERSON_LABELS.salary3,
   split: "Dividir",
 };
 
@@ -21,42 +19,34 @@ export function decorateFixedBills(bills: FixedBill[]): FixedBillView[] {
 }
 
 /**
- * Soma das contas fixas marcadas para entrar no valor da conta da
- * calculadora — usada para preencher/atualizar o campo "Valor da conta".
+ * Soma das contas marcadas para entrar na conta do mês (o "TOTAL" da
+ * planilha, antes de somar o cartão de crédito).
  */
 export function sumIncludedFixedBills(bills: FixedBill[]): number {
   return bills.filter((bill) => bill.includedInBill).reduce((sum, bill) => sum + bill.amount, 0);
 }
 
-/**
- * Todas as contas fixas, sem paginação — usado para totais e para
- * a agregação por mês do Histórico, que precisam do conjunto completo.
- */
+/** Contas de um mês (todas cabem numa tela: ~15 linhas, como na planilha). */
+export async function getFixedBillsForMonth(month: string): Promise<FixedBillView[]> {
+  return decorateFixedBills(await fixedBillRepository.listFixedBillsForMonth(month));
+}
+
+/** Todas as contas de todos os meses — usado para os totais por mês do gráfico. */
 export async function getAllFixedBills(): Promise<FixedBill[]> {
   return fixedBillRepository.listAllFixedBills();
 }
 
-export async function getFixedBillsPage(
-  page: number,
-  pageSize: number = FIXED_BILLS_PAGE_SIZE
-): Promise<PaginatedResult<FixedBillView>> {
-  const safePage = Math.max(1, page);
-  const { bills, total } = await fixedBillRepository.listFixedBillsPage({
-    limit: pageSize,
-    offset: (safePage - 1) * pageSize,
-  });
-
-  return {
-    items: decorateFixedBills(bills),
-    page: safePage,
-    pageSize,
-    total,
-    totalPages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+/** Copia as contas de `fromMonth` para `toMonth`; devolve quantas foram copiadas. */
+export async function copyFixedBills(fromMonth: string, toMonth: string): Promise<number> {
+  return fixedBillRepository.copyFixedBills(fromMonth, toMonth);
 }
 
 export async function createFixedBill(input: CreateFixedBillInput): Promise<FixedBill> {
   return fixedBillRepository.createFixedBill(input);
+}
+
+export async function updateFixedBill(id: string, input: UpdateFixedBillInput): Promise<FixedBill> {
+  return fixedBillRepository.updateFixedBill(id, input);
 }
 
 export async function toggleFixedBillIncluded(id: string, includedInBill: boolean): Promise<FixedBill> {
@@ -65,4 +55,8 @@ export async function toggleFixedBillIncluded(id: string, includedInBill: boolea
 
 export async function deleteFixedBill(id: string): Promise<void> {
   return fixedBillRepository.deleteFixedBill(id);
+}
+
+export async function restoreFixedBill(id: string): Promise<void> {
+  return fixedBillRepository.restoreFixedBill(id);
 }
