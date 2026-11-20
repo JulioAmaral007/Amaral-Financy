@@ -5,8 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 "Rumo" (package name `financy`) is a personal bill-splitting app: Next.js 16 App Router, React 19,
-TypeScript, Tailwind 4. It is a **single-user, client-side app** — all data lives in the browser's
-`localStorage`, there is no backend, no auth, and no login. It opens straight to the dashboard.
+TypeScript, Tailwind 4. Each person has an **account** (Supabase Auth, email + password) and all data lives in
+**Supabase Postgres** under Row Level Security (every row has a `user_id`). There is no custom backend: the
+browser talks to Supabase directly, and `proxy.ts` sends anyone without a session to `/login`.
 
 One user-facing area (the dashboard, `/`, `app/_dashboard/`), organised **around a month**. It replaces the
 owner's "controle financeiro" Excel sheet (one tab per month). A month selector (`?mes=2026-11`, see
@@ -24,14 +25,19 @@ owner's "controle financeiro" Excel sheet (one tab per month). A month selector 
 - **Perfil** (`workspace-*`) — the top bar switches between independent data sets ("Casa", "Pessoal"…). Each
   profile has its own bills, spending, month settings, history and saved salaries, plus a `splitEnabled` flag:
   with it off the profile shows only a month summary (`month-summary-card.tsx`), no Divisão/histórico.
-- **Backup** — export/import of every profile's data as JSON (`schemas/backup.schema.ts`, v2); import replaces all.
+- **Backup** — export/import of every profile's data as JSON (`schemas/backup.schema.ts`, v2); import replaces
+  everything in the account in one transaction (`replace_all_data` RPC). It is also how data that lived in the
+  old localStorage-only version gets into an account.
+- **Conta** — `/login` (`app/_auth/`: login, signup, forgot/reset password), `/auth/callback` (e-mail links),
+  avatar + "Sair" in the header (`components/layout/user-menu.tsx`).
 
 Month total = included bills + spending (`services/month.service.ts:computeMonthTotals`) — the sheet's "TOTAL".
 Saldo a dividir = total − (INSS + Extra Pai).
 
-> This app used to have Investments, PJ (freelance tracking) and Supabase-backed auth/account features. Those
-> were **removed** — don't try to "restore" them. There is no Supabase, no Server Actions, no server-side
-> persistence in this project anymore.
+> History: this app once had Investments, PJ (freelance tracking), goals and an account/profile screen on
+> Supabase; they were removed and **stay removed** — don't restore them. Supabase itself came back later
+> (auth + the month-based data), with new tables in `supabase/migrations/20261120000000_create_rumo_data.sql`;
+> the old tables (`pj_*`, `investment_*`, `goals`, `profiles`) are unrelated to the current app.
 
 ## Commands
 
@@ -42,26 +48,38 @@ npm run start    # run production build
 npm run lint     # ESLint (eslint-config-next core-web-vitals + typescript)
 ```
 
-No test runner is configured. No environment variables are required — there is no `.env.local`.
+No test runner is configured (vitest is installed but there are no tests yet).
 
-## Architecture — everything runs in the browser
+Needs `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The database and the
+Auth URL settings must be set up once — follow `supabase/SETUP.md` (run the migration in the SQL Editor).
+
+## Architecture — data access runs in the browser, auth on the server
 
 ```
 Component ("use client")
   → actions/*.actions.ts    plain async function (NOT "use server") — zod-parse, call service, return {error} state
   → services/*.service.ts   business rules, decoration / derived view models
-  → repositories/*.repository.ts   read/write localStorage, soft-delete, id/timestamp generation
-  → lib/local-storage/storage.ts   JSON.parse/stringify against window.localStorage
+  → repositories/*.repository.ts   Supabase queries (browser client), soft-delete, id/timestamp generation
+  → lib/supabase/client.ts  createBrowserSupabaseClient() — session comes from the auth cookies
 ```
 
-- `actions/*.actions.ts` (calculate, fixed-bill, history, month, spending, backup) are plain async
-  functions called directly from client components — **not** `"use server"`, not passed to `<form action>`, no
-  server round-trip. localStorage isn't reachable on the server, so nothing here can run there.
+- `actions/*.actions.ts` (calculate, fixed-bill, history, month, spending, backup, workspace) are plain async
+  functions called directly from client components — **not** `"use server"`, not passed to `<form action>`. Data
+  reads/writes go from the browser straight to Supabase; RLS (`user_id = auth.uid()`) is what isolates users, so
+  every table needs it. `user_id` is filled by the column default; upserts send it explicitly (`requireUserId()`).
+- The **one exception** is `actions/auth.actions.ts` (`"use server"`): sign-in/up/out and password reset run on
+  the server because the session lives in cookies (`lib/supabase/server.ts`). `proxy.ts` (Next 16's middleware)
+  refreshes the session on every request and redirects: no session → `/login`; session on `/login` → `/`
+  (except `?step=reset`, the password-reset step). Auth forms navigate with `window.location.assign` after
+  success and call `clearActiveWorkspaceId()`.
 - Client components import services directly (e.g. `profileService.getProfile()` inside a `useEffect`) — the
-  whole read/write path is synchronous browser code wrapped in `Promise`s.
-- **Soft delete** convention: a `deletedAt: string | null` field on an internal `Stored*` type
-  (`StoredFixedBill`, `StoredHistoryEntry`, `StoredSpending`), never a hard delete. Public repository functions strip it before
-  returning.
+  repositories are real network calls, so sections catch load failures with `notifyLoadError` (`lib/load-error.ts`).
+  PostgREST caps a response at 1000 rows: any "read everything" query must use `fetchAllPages`
+  (`lib/supabase/errors.ts`).
+- **Soft delete** convention: a `deleted_at` column (`deletedAt: string | null` on the `Stored*` types in
+  `repositories/rows.ts`), never a hard delete. Public repository functions strip it before returning.
+  `repositories/rows.ts` also holds the row <-> `Stored*` mappers (snake_case <-> camelCase, numeric/timestamptz
+  normalisation) shared by the repositories and the backup.
 - No server-side invalidation exists, so cross-component sync after a mutation uses a tiny `window` event bus:
   `lib/history-events.ts`, `lib/fixed-bill-events.ts`, `lib/month-events.ts` (spending + month settings). The
   sections subscribe to all three through `app/_dashboard/use-data-reload-key.ts` and reload in a `useEffect`
@@ -75,23 +93,26 @@ Component ("use client")
 
 ### `profile` and month settings
 
-`types/profile.ts` + `repositories/profile.repository.ts`: saved salary values (`salary1/2/3`) under
-`STORAGE_KEYS.PROFILE`. `salary2/3` (Thais/Julio) are only used by the proportional split; `salary1` is just the
+`types/profile.ts` + `repositories/profile.repository.ts`: saved salary values (`salary1/2/3`) in the
+`workspace_salaries` table (one row per profile). `salary2/3` (Thais/Julio) are only used by the proportional split; `salary1` is just the
 default INSS when no earlier month exists.
 
-`types/month.ts` + `repositories/month-settings.repository.ts` (`STORAGE_KEYS.MONTHS`, a `Record<"YYYY-MM",
-MonthSettings>`): per-month INSS, Extra Pai, split mode and the per-category *valor estimado*. A month with no
+`types/month.ts` + `repositories/month-settings.repository.ts` (`month_settings` table, one row per
+profile + `"YYYY-MM"`): per-month INSS, Extra Pai, split mode and the per-category *valor estimado*. A month with no
 settings of its own **inherits** from the latest earlier month (extra pai resets to 0) —
 `month.service.getMonthSettings`. Settings are only written when something is edited.
 
 ### Profiles (workspaces)
 
 `types/workspace.ts` (not to be confused with `Profile` = saved salaries), `repositories/workspace.repository.ts`
-(list under `financy:workspaces`, soft-deleted, active id under `financy:active-workspace`). Isolation is done by
-**localStorage key namespacing** (`lib/local-storage/keys.ts`): the default profile `casa` keeps the original keys
-(`financy:fixed-bills`…, so pre-profile data needed no migration); others use `financy:ws:<id>:<name>`.
-`STORAGE_KEYS.X` are getters that resolve the **active** profile on every access — repositories keep using them
-unchanged, so any new per-profile store must be added to `WORKSPACE_DATA_NAMES` and the backup schema.
+(`workspaces` table, soft-deleted). Isolation is a `workspace_id` column on every per-profile table
+(`workspace_salaries`, `fixed_bills`, `spendings`, `history_entries`, `month_settings`); there is no FK to
+`workspaces` (profiles are only soft-deleted). The default profile `casa` is created on first read of a new account
+(`readAllStoredWorkspaces`). The **active** profile id is a per-device preference in localStorage
+(`financy:active-workspace`, `lib/active-workspace.ts`), read synchronously by every repository via
+`getActiveWorkspaceId()` — it is cleared on login/logout because one account's ids mean nothing to another. Any
+new per-profile table must get RLS, go into the backup schema/`backup.repository.ts` **and** into
+`replace_all_data` in the migration.
 Switching/creating/editing a profile ends in `window.location.reload()` (fresh state, no stale sections, and
 pending debounced saves can't leak into another profile). Removing a profile is a soft delete (data kept,
 restorable from the edit panel); the last profile can't be removed.
@@ -105,8 +126,7 @@ Names shown for the three "salaries" live in `lib/people.ts` — change them the
   (proportional, R$ 500 floor). If salaries can't cover the bill in proportional mode, `exceeds`/`shortfall`
   report the gap instead of rejecting the calculation.
 - **Fixed bills** (`types/fixed-bill.ts`, `services/fixed-bill.service.ts`): bills of one `month`. New bills
-  start `includedInBill: true`. Legacy records without `month` are migrated to the current month on first read
-  (`fixed-bill.repository.readAll`). Zero-valued bills aren't representable in the UI (amount must be > 0).
+  start `includedInBill: true`. Zero-valued bills aren't representable in the UI (amount must be > 0).
 - **Spending** (`types/month.ts`, `services/spending.service.ts`): `date` is a `"YYYY-MM-DD"` string; its month is
   `date.slice(0, 7)` (`monthKeyFromDate`) — never derive it through `Date`/timezone.
 - **Parcelamento** (`Spending.installment = { groupId, number, total }`): a compra parcelada vira N `Spending`
@@ -114,13 +134,13 @@ Names shown for the three "salaries" live in `lib/people.ts` — change them the
   `spending.repository.createInstallmentSpendings`. O valor digitado é o **total**; a última parcela absorve os
   centavos. Cada parcela é editável isoladamente; "remover esta e as seguintes" usa `deleteInstallmentsFrom`.
 - **History** (`types/history.ts`, `repositories/history.repository.ts`): one entry per "Registrar divisão",
-  carrying its `month` (legacy entries fall back to the month of `calculatedAt`), soft-deletable. The chart does
+  carrying its `month` (old backups without it fall back to the month of `calculatedAt`), soft-deletable. The chart does
   **not** read history — monthly totals come from bills + spending (`month.service.getTotalsByMonth`,
   `services/bill-split-chart.service.ts`).
 - **Backup** (`schemas/backup.schema.ts`, `services/backup.service.ts`): v2 =
   `{ app: "rumo", version: 2, activeWorkspaceId, workspaces: [{ …workspace, data }] }`. v1 files (single data
-  set, pre-profiles) are still accepted and become the "Casa" profile. Workspace ids end up in storage keys, so the
-  schema restricts them to `[A-Za-z0-9-]`. Keep the schema in sync when adding a per-profile store.
+  set, pre-profiles) are still accepted and become the "Casa" profile. Workspace ids are restricted to `[A-Za-z0-9-]`
+  (the database checks it too). Keep the schema in sync when adding a per-profile store.
 
 ## Conventions actually in effect
 
