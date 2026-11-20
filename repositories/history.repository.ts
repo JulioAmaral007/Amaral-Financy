@@ -1,8 +1,11 @@
 import { STORAGE_KEYS } from "@/lib/local-storage/keys";
 import { readStorage, writeStorage } from "@/lib/local-storage/storage";
+import { toMonthKey } from "@/lib/month";
 import type { HistoryEntry } from "@/types/history";
 
-interface StoredHistoryEntry extends HistoryEntry {
+interface StoredHistoryEntry extends Omit<HistoryEntry, "month"> {
+  /** Ausente em cálculos registrados antes do controle por mês. */
+  month?: string;
   deletedAt: string | null;
 }
 
@@ -22,6 +25,7 @@ function stripDeleted(entry: StoredHistoryEntry): HistoryEntry {
     salary2Payment: entry.salary2Payment,
     salary3Payment: entry.salary3Payment,
     calculatedAt: entry.calculatedAt,
+    month: entry.month ?? toMonthKey(new Date(entry.calculatedAt)),
   };
 }
 
@@ -31,26 +35,17 @@ function sortByCalculatedAtDesc(entries: HistoryEntry[]): HistoryEntry[] {
   );
 }
 
-export async function listHistoryBetween(startIso: string, endIso: string): Promise<HistoryEntry[]> {
-  const start = new Date(startIso).getTime();
-  const end = new Date(endIso).getTime();
-
-  return sortByCalculatedAtDesc(
-    readAll()
-      .filter((entry) => !entry.deletedAt)
-      .map(stripDeleted)
-      .filter((entry) => {
-        const time = new Date(entry.calculatedAt).getTime();
-        return time >= start && time <= end;
-      })
-  );
-}
-
 export async function listHistoryPage(pagination: {
   limit: number;
   offset: number;
+  month?: string;
 }): Promise<{ entries: HistoryEntry[]; total: number }> {
-  const all = sortByCalculatedAtDesc(readAll().filter((entry) => !entry.deletedAt).map(stripDeleted));
+  const all = sortByCalculatedAtDesc(
+    readAll()
+      .filter((entry) => !entry.deletedAt)
+      .map(stripDeleted)
+      .filter((entry) => !pagination.month || entry.month === pagination.month)
+  );
   return {
     entries: all.slice(pagination.offset, pagination.offset + pagination.limit),
     total: all.length,
@@ -58,6 +53,7 @@ export async function listHistoryPage(pagination: {
 }
 
 export async function createHistoryEntry(input: {
+  month: string;
   billAmount: number;
   salary1Payment: number;
   salary2Payment: number;
@@ -70,11 +66,30 @@ export async function createHistoryEntry(input: {
     salary2Payment: input.salary2Payment,
     salary3Payment: input.salary3Payment,
     calculatedAt: new Date().toISOString(),
+    month: input.month,
     deletedAt: null,
   };
 
   writeAll([...readAll(), entry]);
   return stripDeleted(entry);
+}
+
+export async function updateHistoryEntry(
+  id: string,
+  input: {
+    billAmount: number;
+    salary1Payment: number;
+    salary2Payment: number;
+    salary3Payment: number;
+  }
+): Promise<HistoryEntry> {
+  const all = readAll();
+  const index = all.findIndex((entry) => entry.id === id && !entry.deletedAt);
+  if (index === -1) throw new Error("Cálculo não encontrado");
+
+  all[index] = { ...all[index], ...input };
+  writeAll(all);
+  return stripDeleted(all[index]);
 }
 
 /**
@@ -87,5 +102,15 @@ export async function deleteHistoryEntry(id: string): Promise<void> {
   if (index === -1) return;
 
   all[index] = { ...all[index], deletedAt: new Date().toISOString() };
+  writeAll(all);
+}
+
+/** Reverte um soft delete: usado pelo "Desfazer" mostrado ao remover um cálculo. */
+export async function restoreHistoryEntry(id: string): Promise<void> {
+  const all = readAll();
+  const index = all.findIndex((entry) => entry.id === id && entry.deletedAt);
+  if (index === -1) return;
+
+  all[index] = { ...all[index], deletedAt: null };
   writeAll(all);
 }

@@ -5,18 +5,9 @@ import type { SalarySplitResult } from "@/types/bill-split";
 
 export const HISTORY_PAGE_SIZE = 8;
 
-/**
- * Todos os cálculos do ano corrente, sem paginação — usado para a
- * agregação por mês do gráfico de Histórico.
- */
-export async function getHistoryForCurrentYear(referenceDate: Date = new Date()): Promise<HistoryEntry[]> {
-  const year = referenceDate.getFullYear();
-  const startIso = new Date(year, 0, 1).toISOString();
-  const endIso = new Date(year, 11, 31, 23, 59, 59).toISOString();
-  return historyRepository.listHistoryBetween(startIso, endIso);
-}
-
+/** Divisões registradas de um mês, mais recentes primeiro. */
 export async function getHistoryPage(
+  month: string,
   page: number,
   pageSize: number = HISTORY_PAGE_SIZE
 ): Promise<PaginatedResult<HistoryEntry>> {
@@ -24,6 +15,7 @@ export async function getHistoryPage(
   const { entries, total } = await historyRepository.listHistoryPage({
     limit: pageSize,
     offset: (safePage - 1) * pageSize,
+    month,
   });
 
   return {
@@ -36,10 +28,12 @@ export async function getHistoryPage(
 }
 
 export async function recordCalculation(
+  month: string,
   split: SalarySplitResult,
   billAmount: number
 ): Promise<HistoryEntry> {
   return historyRepository.createHistoryEntry({
+    month,
     billAmount,
     salary1Payment: split.salary1Payment,
     salary2Payment: split.salary2Payment,
@@ -47,6 +41,22 @@ export async function recordCalculation(
   });
 }
 
+export async function updateHistoryEntry(
+  id: string,
+  input: {
+    billAmount: number;
+    salary1Payment: number;
+    salary2Payment: number;
+    salary3Payment: number;
+  }
+): Promise<HistoryEntry> {
+  return historyRepository.updateHistoryEntry(id, input);
+}
+
 export async function deleteHistoryEntry(id: string): Promise<void> {
   return historyRepository.deleteHistoryEntry(id);
+}
+
+export async function restoreHistoryEntry(id: string): Promise<void> {
+  return historyRepository.restoreHistoryEntry(id);
 }
